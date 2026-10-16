@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GameSession } from '../src/session.js';
-import { signal, solveCandidates } from '../src/engine.js';
+import { classify, signal, solveCandidates } from '../src/engine.js';
 
 const source = { x: 400, y: 300 };
 const points = [
@@ -70,6 +70,71 @@ test('rapid confirmations and movement cannot alter a locked measurement or debi
   assert.ok(Object.isFrozen(game.state.records[0].point));
 });
 
+for (const level of [1, 2]) {
+  test(`default level ${level} uses four one-second locked measurements and reveals percentages only after submission`, () => {
+    let judgements = 0;
+    const game = new GameSession({}, {
+      now: () => 0,
+      classify: (...args) => { judgements += 1; return classify(...args); },
+    });
+    const assertUnrevealed = () => {
+      assert.equal(game.state.result, null);
+      assert.equal(judgements, 0);
+      assert.ok(!JSON.stringify(game.state).includes('"errorPercent"'));
+      assert.ok(!JSON.stringify(game.state).includes('"nearestPercent"'));
+    };
+    assert.equal(game.nextConfig.version, '0.2.0');
+    assert.equal(game.nextConfig.measurements, 4);
+    assert.equal(game.nextConfig.measurementMs, 1000);
+    assertUnrevealed();
+    game.start(level, { source, now: 0 });
+    assertUnrevealed();
+    for (let index = 0; index < 4; index++) {
+      const now = index * 1000;
+      assert.equal(game.select(points[index]), true);
+      assertUnrevealed();
+      assert.equal(game.submit(now), false);
+      assert.equal(game.beginMeasurement(now), true);
+      assert.equal(game.state.measurementDeadline, now + 1000);
+      for (let repeat = 0; repeat < 10; repeat++) {
+        assert.equal(game.beginMeasurement(now + repeat), false);
+        assert.equal(game.select(points[(index + 1) % 4]), false);
+        assert.equal(game.cancelSelection(), false);
+        assert.equal(game.submit(now + repeat), false);
+      }
+      assert.equal(game.state.used, index + 1);
+      assert.equal(game.tick(now + 999), false);
+      assert.equal(game.state.records.length, index);
+      assertUnrevealed();
+      assert.equal(game.tick(now + 1000), true);
+      assert.equal(game.tick(now + 1000), false);
+      assert.equal(game.state.records.length, index + 1);
+      assertUnrevealed();
+    }
+    assert.equal(game.state.phase, 'locate');
+    assert.equal(game.beginMeasurement(4000), false);
+    assert.equal(game.submit(4000), false);
+    assert.equal(game.select(points[2]), true);
+    assertUnrevealed();
+    assert.equal(game.cancelSelection(), true);
+    assertUnrevealed();
+    assert.equal(game.select(source), true);
+    assertUnrevealed();
+    assert.equal(game.submit(4500), true);
+    assert.equal(game.state.phase, 'result');
+    assert.equal(game.state.result.status, 'success');
+    assert.equal(game.state.result.errorPercent, 0);
+    assert.ok(game.state.result.nearestPercent < 1e-8);
+    assert.equal(judgements, 1);
+    assert.equal(game.submit(4501), false);
+    assert.equal(judgements, 1);
+    game.start(level, { source: { x: 1200, y: 650 }, now: 5000 });
+    assert.equal(game.state.result, null);
+    assert.ok(!JSON.stringify(game.state).includes('"errorPercent"'));
+    assert.ok(!JSON.stringify(game.state).includes('"nearestPercent"'));
+  });
+}
+
 test('invalid points, wall boundaries, and duplicate or nearby measurements are rejected', () => {
   const game = create();
   game.start(2, { source, now: 0 });
@@ -124,15 +189,17 @@ test('next-game configuration cannot alter an in-progress game or its timer', ()
   game.select(points[0]);
   game.beginMeasurement(10);
   assert.equal(game.configure({ measurements: 5, measurementMs: 200, K: 200 }), true);
-  assert.equal(game.state.config.measurements, 3);
+  assert.equal(game.state.config.measurements, 4);
   assert.equal(game.state.config.K, initial.config.K);
   assert.equal(game.state.measurementDeadline, 30);
   assert.equal(game.nextConfig.measurements, 5);
   game.tick(30);
   measure(game, points[1], 100);
   measure(game, points[2], 200);
+  assert.equal(game.state.phase, 'select');
+  measure(game, points[3], 300);
   assert.equal(game.state.phase, 'locate');
-  const next = game.start(2, { source: { x: 1200, y: 650 }, now: 300 });
+  const next = game.start(2, { source: { x: 1200, y: 650 }, now: 400 });
   assert.equal(next.config.measurements, 5);
   assert.equal(next.config.measurementMs, 200);
   assert.equal(next.config.K, 200);
@@ -167,14 +234,14 @@ test('returning home cancels a measurement and retains next-game settings', () =
   game.start(1, { source, now: 0 });
   game.select(points[0]);
   game.beginMeasurement(10);
-  game.configure({ measurements: 4 });
+  game.configure({ measurements: 5 });
   assert.equal(game.resetToHome(), true);
   assert.equal(game.tick(30), false);
   assert.equal(game.state.phase, 'home');
   assert.equal(game.state.source, null);
   assert.equal(game.state.used, 0);
   assert.equal(game.elapsed(300), 0);
-  assert.equal(game.state.config.measurements, 4);
+  assert.equal(game.state.config.measurements, 5);
 });
 
 test('automatic source generation excludes the previous source even with a fixed RNG', () => {
@@ -221,8 +288,8 @@ test('a thrown solver failure also preserves the submitted guess and all measure
   assert.equal(game.submit(500), true);
   assert.equal(game.state.phase, 'error');
   assert.deepEqual(game.state.guess, source);
-  assert.equal(game.state.records.length, 3);
-  assert.equal(game.state.used, 3);
+  assert.equal(game.state.records.length, 4);
+  assert.equal(game.state.used, 4);
   assert.equal(game.state.result, null);
   game.start(1, { source, now: 700 });
   assert.equal(game.state.error, null);
@@ -231,13 +298,13 @@ test('a thrown solver failure also preserves the submitted guess and all measure
 
 test('game instances keep their source, records, settings, and progress independent', () => {
   const first = create();
-  const second = create({ measurements: 4 });
+  const second = create({ measurements: 5 });
   first.start(1, { source, now: 0 });
   second.start(2, { source: { x: 1200, y: 700 }, now: 50 });
   measure(first, points[0], 10);
   assert.equal(second.state.used, 0);
   assert.equal(second.state.records.length, 0);
-  assert.equal(second.state.config.measurements, 4);
+  assert.equal(second.state.config.measurements, 5);
   second.resetToHome();
   assert.equal(first.state.records.length, 1);
   assert.deepEqual(first.state.source, source);

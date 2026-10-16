@@ -1,9 +1,9 @@
 const defaults = {
-  version: '0.1.0',
+  version: '0.2.0',
   width: 1600,
   height: 1000,
-  measurements: 3,
-  measurementMs: 3000,
+  measurements: 4,
+  measurementMs: 1000,
   K: 100,
   h: 0.10,
   b: 5,

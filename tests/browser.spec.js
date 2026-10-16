@@ -12,6 +12,40 @@ const points = [
 const pageErrors = new WeakMap();
 const action = (page, name) => page.locator(`[data-action="${name}"]`);
 const recordButtons = page => page.locator('button[data-record]');
+const resultMetric = (page, name) => page.locator(`[data-metric="${name}"]`);
+
+async function expectNoResultMetrics(page) {
+  await expect(page.locator('[data-metric="source-error"], [data-metric="candidate-error"]')).toHaveCount(0);
+}
+
+async function displayedPoint(page, marker) {
+  const transform = await page.locator(`#field .${marker}`).getAttribute('transform');
+  const coordinates = transform.match(/translate\(\s*([-+\d.e]+)[,\s]+([-+\d.e]+)\s*\)/i);
+  expect(coordinates, `Expected a public SVG point transform, got ${transform}`).not.toBeNull();
+  return { x: Number(coordinates[1]), y: Number(coordinates[2]) };
+}
+
+function errorPercentage(first, second) {
+  return (Math.hypot(first.x - second.x, first.y - second.y)
+    / Math.min(DEFAULT_CONFIG.width, DEFAULT_CONFIG.height) * 100).toFixed(2);
+}
+
+async function expectPercentage(page, metric, expected) {
+  await expect(resultMetric(page, metric)).toBeVisible();
+  const text = (await resultMetric(page, metric).innerText()).replace(/\s/g, '');
+  expect(text).toContain(`${expected}%`);
+}
+
+async function expectNoHorizontalOverflow(page, width) {
+  const sizes = await page.evaluate(() => ({
+    document: document.documentElement.scrollWidth,
+    body: document.body.scrollWidth,
+    viewport: window.innerWidth,
+  }));
+  expect(sizes.document).toBeLessThanOrEqual(width + 1);
+  expect(sizes.body).toBeLessThanOrEqual(width + 1);
+  expect(sizes.viewport).toBeLessThanOrEqual(width + 1);
+}
 
 test.beforeEach(async ({ context }) => {
   const errors = [];
@@ -61,6 +95,21 @@ async function choosePoint(page, point) {
   } });
 }
 
+async function chooseExactPoint(page, point) {
+  const field = page.locator('#field');
+  await field.scrollIntoViewIfNeeded();
+  const bounds = await field.boundingBox();
+  // A floating-point PointerEvent exercises the map's public coordinate input
+  // without OS mouse-pixel rounding. This does not access hidden game state.
+  const pointer = {
+    pointerId: 42, pointerType: 'mouse', button: 0,
+    clientX: bounds.x + point.x / DEFAULT_CONFIG.width * bounds.width,
+    clientY: bounds.y + point.y / DEFAULT_CONFIG.height * bounds.height,
+  };
+  await field.dispatchEvent('pointerdown', pointer);
+  await field.dispatchEvent('pointerup', pointer);
+}
+
 async function finishMeasurement(page, point, index, duration = 1000) {
   await choosePoint(page, point);
   await expect(action(page, 'measure')).toBeEnabled();
@@ -93,6 +142,64 @@ async function publicSnapshot(page) {
 }
 
 for (const level of [1, 2]) {
+  test(`level ${level} starts directly with four one-second measurements and reveals no result metrics early`, async ({ page }) => {
+    const seed = `browser-default-four-${level}`;
+    const source = generateSource(level, DEFAULT_CONFIG, seededRandom(seed));
+    await openGame(page, seed);
+    // Check the defaults without opening or changing the settings disclosure.
+    await expect(page.getByLabel('每关测量次数', { exact: true })).toHaveValue('4');
+    await expect(page.getByLabel('每次测量等待', { exact: true })).toHaveValue('1000');
+    await page.locator(`[data-level="${level}"]`).click();
+    await action(page, 'start').click();
+    await expect(page.locator('.game-meta .pill')).toHaveText('已用 0 / 4 次');
+    await expectNoResultMetrics(page);
+    for (let index = 0; index < 4; index += 1) {
+      await choosePoint(page, points[index]);
+      await expectNoResultMetrics(page);
+      await expect(page.locator('.game-meta .pill')).toHaveText(`已用 ${index} / 4 次`);
+      await action(page, 'measure').click();
+      for (let repeat = 0; repeat < 6; repeat += 1) await action(page, 'measure').dispatchEvent('click');
+      await expect(page.locator('.game-meta .pill')).toHaveText(`已用 ${index + 1} / 4 次`);
+      await expectNoResultMetrics(page);
+      await page.clock.runFor(999);
+      await expect(recordButtons(page)).toHaveCount(index);
+      await expect(action(page, 'measure')).toBeDisabled();
+      await page.clock.runFor(1);
+      // The deadline is exactly 1000 ms; rendering happens at the first frame
+      // at or after that deadline, which can be one frame later.
+      await page.clock.runFor(17);
+      await expect(recordButtons(page)).toHaveCount(index + 1);
+      await expectNoResultMetrics(page);
+      if (index < 3) await expect(action(page, 'submit')).toHaveCount(0);
+    }
+    await expect(action(page, 'submit')).toBeDisabled();
+    await choosePoint(page, source);
+    const guess = await displayedPoint(page, 'guess');
+    await expectNoResultMetrics(page);
+    await action(page, 'submit').click();
+    await expect(page.locator('.result-title')).toHaveText('定位成功');
+    await expectPercentage(page, 'source-error', errorPercentage(guess, source));
+    await expect(page.locator('.game-meta .pill')).toHaveText('已用 4 / 4 次');
+  });
+}
+
+test('an exact source submission displays a zero error of 0.00%', async ({ page }) => {
+  const seed = 'browser-zero-error';
+  const source = generateSource(1, DEFAULT_CONFIG, seededRandom(seed));
+  await openGame(page, seed);
+  await startGame(page);
+  for (let index = 0; index < 3; index += 1) await finishMeasurement(page, points[index], index);
+  await chooseExactPoint(page, source);
+  const guess = await displayedPoint(page, 'guess');
+  expect(guess.x).toBeCloseTo(source.x, 9);
+  expect(guess.y).toBeCloseTo(source.y, 9);
+  await expectNoResultMetrics(page);
+  await action(page, 'submit').click();
+  await expect(page.locator('.result-title')).toHaveText('定位成功');
+  await expectPercentage(page, 'source-error', '0.00');
+});
+
+for (const level of [1, 2]) {
   for (const measurements of [3, 4, 5]) {
     test(`level ${level} completes ${measurements} measurements with separate, guarded confirmations`, async ({ page }) => {
       const seed = `browser-level-${level}-count-${measurements}`;
@@ -102,6 +209,7 @@ for (const level of [1, 2]) {
       await expect(page.locator('#field .wall')).toHaveCount(level === 2 ? 1 : 0);
       await expect(page.locator('.record')).toHaveCount(measurements);
       await expect(action(page, 'measure')).toBeDisabled();
+      await expectNoResultMetrics(page);
       for (let index = 0; index < measurements; index += 1) {
         const previousReading = await page.locator('#reading').innerText();
         await choosePoint(page, points[index]);
@@ -135,10 +243,13 @@ for (const level of [1, 2]) {
       await choosePoint(page, source);
       await expect(page.locator('#reading')).toHaveText(reading, { useInnerText: true });
       await expect(page.locator('#field .true-source')).toHaveCount(0);
+      const guess = await displayedPoint(page, 'guess');
+      await expectNoResultMetrics(page);
       await action(page, 'submit').click();
       await expect(page.locator('.result-title')).toHaveText('定位成功');
       await expect(page.locator('#field .true-source')).toHaveCount(1);
-      await expect(page.locator('.result-stats')).toContainText(`${measurements} 次测量`);
+      await expect(page.locator('.game-meta .pill')).toHaveText(`已用 ${measurements} / ${measurements} 次`);
+      await expectPercentage(page, 'source-error', errorPercentage(guess, source));
       await expect(recordButtons(page)).toHaveCount(measurements);
       if (level === 2) await expect(page.locator('#field .source-path')).toHaveCount(measurements);
     });
@@ -252,11 +363,16 @@ test('collinear measurements recognize a distinct mirrored source without previe
     await expect(recordButtons(page)).toHaveCount(index + 1);
   }
   await expect(page.locator('#field .candidate, #field .true-source')).toHaveCount(0);
-  await choosePoint(page, { x: source.x, y: DEFAULT_CONFIG.height - source.y });
+  const mirror = { x: source.x, y: DEFAULT_CONFIG.height - source.y };
+  await choosePoint(page, mirror);
+  const guess = await displayedPoint(page, 'guess');
+  await expectNoResultMetrics(page);
   await action(page, 'submit').click();
   await expect(page.locator('.result-title')).toContainText('合理判断');
-  await expect(page.locator('.result-feedback')).toContainText('现有信息尚不能区分');
   await expect(page.locator('#field .candidate')).toHaveCount(1);
+  await expectPercentage(page, 'source-error', errorPercentage(guess, source));
+  await expectPercentage(page, 'candidate-error', errorPercentage(guess, mirror));
+  expect(Number(errorPercentage(guess, mirror))).toBeLessThan(Number(errorPercentage(guess, source)));
 });
 
 test.describe('mobile-sized Chrome emulation (not a substitute for physical phone testing)', () => {
@@ -317,6 +433,41 @@ test.describe('mobile-sized Chrome emulation (not a substitute for physical phon
     await choosePoint(page, source);
     await action(page, 'submit').click();
     await expect(page.locator('.result-title')).toHaveText('定位成功');
+  });
+
+  test('a 320px-wide phone has no horizontal overflow and can finish, inspect results and replay', async ({ page }) => {
+    const width = 320;
+    const seed = 'browser-narrow-phone';
+    const source = generateSource(1, DEFAULT_CONFIG, seededRandom(seed));
+    await page.setViewportSize({ width, height: 740 });
+    await openGame(page, seed);
+    await expectNoHorizontalOverflow(page, width);
+    const disclosures = await page.locator('details').all();
+    for (const disclosure of disclosures) {
+      await disclosure.locator('summary').click();
+      await expectNoHorizontalOverflow(page, width);
+      await disclosure.locator('summary').click();
+    }
+    await action(page, 'start').click();
+    await expect(page.locator('.game-meta .pill')).toHaveText('已用 0 / 4 次');
+    for (let index = 0; index < 4; index += 1) {
+      await finishMeasurement(page, points[index], index);
+      await expectNoHorizontalOverflow(page, width);
+      await expectNoResultMetrics(page);
+    }
+    await choosePoint(page, source);
+    await action(page, 'submit').click();
+    await expect(page.locator('.result-title')).toHaveText('定位成功');
+    await expect(resultMetric(page, 'source-error')).toBeVisible();
+    await expectNoHorizontalOverflow(page, width);
+    await action(page, 'demo').click();
+    await expectNoHorizontalOverflow(page, width);
+    await action(page, 'start').click();
+    await expect(page.locator('.game-meta .pill')).toHaveText('已用 0 / 4 次');
+    await action(page, 'switch').click();
+    await expect(page.locator('.game-title')).toHaveText('隔墙寻源');
+    await finishMeasurement(page, points[0], 0);
+    await expectNoHorizontalOverflow(page, width);
   });
 });
 
@@ -394,7 +545,7 @@ test('project-subpath resources load and direct reload returns to a usable start
   await expect(page.locator('#app')).toBeVisible();
   await expect(page.locator('.hero-title')).toBeVisible();
   await action(page, 'start').click();
-  await expect(page.locator('.game-meta .pill')).toHaveText('已用 0 / 3 次');
+  await expect(page.locator('.game-meta .pill')).toHaveText('已用 0 / 4 次');
   await expect(page.locator('#field .true-source')).toHaveCount(0);
 });
 

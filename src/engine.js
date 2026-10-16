@@ -202,5 +202,9 @@ export function classify(guess, source, candidates, config) {
     status = 'near';
     label = '接近可行位置';
   }
-  return { status, label, error, nearestDistance, candidate };
+  // These are spatial errors relative to the short edge, not confidence
+  // scores; a distant guess can legitimately exceed 100 percent.
+  const errorPercent = error / scale * 100;
+  const nearestPercent = nearestDistance / scale * 100;
+  return { status, label, error, nearestDistance, errorPercent, nearestPercent, candidate };
 }

@@ -15,7 +15,9 @@ test('configuration creates independent immutable snapshots with the specified d
   input.wall.x = 10;
   assert.equal(first.wall.x, 750);
   assert.equal(second.wall.x, 780);
-  assert.equal(DEFAULT_CONFIG.measurements, 3);
+  assert.equal(DEFAULT_CONFIG.version, '0.2.0');
+  assert.equal(DEFAULT_CONFIG.measurements, 4);
+  assert.equal(DEFAULT_CONFIG.measurementMs, 1000);
   assert.notEqual(first.wall, second.wall);
   assert.notEqual(second.wall, DEFAULT_CONFIG.wall);
   assert.ok(Object.isFrozen(first) && Object.isFrozen(first.wall));
@@ -224,6 +226,50 @@ test('inclusive success and near boundaries use logical distances, while the nex
   assert.equal(classify({ x: 340, y: 300 }, source, candidates, changed).status, 'near');
   assert.equal(classify({ x: 340.000001, y: 300 }, source, candidates, changed).status, 'miss');
   assert.deepEqual(signal(source, { x: 100, y: 100 }, 1, changed), signal(source, { x: 100, y: 100 }, 1, config));
+});
+
+test('an exact guess reports zero error percentages without changing the successful grade', () => {
+  const source = { x: 300, y: 300 };
+  const result = classify(source, source, [source], config);
+  assert.equal(result.status, 'success');
+  assert.equal(result.errorPercent, 0);
+  assert.equal(result.nearestPercent, 0);
+});
+
+test('result percentages normalize by the short edge for either nonsquare map orientation', () => {
+  const source = { x: 100, y: 100 };
+  const guess = { x: 280, y: 100 };
+  for (const dimensions of [{ width: 1600, height: 900 }, { width: 900, height: 1600 }]) {
+    const current = makeConfig(dimensions);
+    const result = classify(guess, source, [source], current);
+    close(result.error, 180);
+    close(result.errorPercent, 20);
+    close(result.nearestPercent, 20);
+    assert.equal(result.status, 'miss');
+  }
+});
+
+test('mirror solutions retain separate true-source and nearest-valid-candidate percentages', () => {
+  const source = { x: 800, y: 300 };
+  const mirror = { x: 800, y: 700 };
+  const records = observations(source, [{ x: 200, y: 500 }, { x: 600, y: 500 }, { x: 1000, y: 500 }, { x: 1400, y: 500 }]);
+  const candidates = solveCandidates(records, 1, config);
+  const result = classify({ x: mirror.x, y: mirror.y + 30 }, source, candidates, config);
+  assert.equal(result.status, 'reasonable');
+  close(result.errorPercent, 43);
+  close(result.nearestPercent, 3);
+  close(distance(result.candidate, mirror), 0);
+});
+
+test('error percentages above one short edge are not clipped to 100 percent', () => {
+  const source = { x: 0, y: 0 };
+  const guess = { x: config.width, y: config.height };
+  const result = classify(guess, source, [source], config);
+  const expected = Math.hypot(config.width, config.height) / Math.min(config.width, config.height) * 100;
+  assert.equal(result.status, 'miss');
+  assert.ok(result.errorPercent > 100);
+  close(result.errorPercent, expected);
+  close(result.nearestPercent, expected);
 });
 
 test('missing true candidates trigger an explicit program anomaly rather than a failure grade', () => {

@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { DEFAULT_CONFIG } from '../src/config.js';
 const output = new URL('../dist/', import.meta.url);
 const source = new URL('../', import.meta.url);
 const files = ['index.html', 'styles.css', ...(await readdir(new URL('src/', source))).filter(f => f.endsWith('.js')).map(f => `src/${f}`)];
@@ -13,5 +14,5 @@ for (let i=0; i<files.length; i++) {
   await writeFile(new URL(files[i], output), value);
 }
 await writeFile(new URL('.nojekyll', output), '');
-await writeFile(new URL('release.json', output), JSON.stringify({version:'0.1.0',revision,files}, null, 2)+'\n');
-console.log(`Static build: dist/ · 0.1.0 · ${revision} · ${files.length} files`);
+await writeFile(new URL('release.json', output), JSON.stringify({version:DEFAULT_CONFIG.version,revision,files}, null, 2)+'\n');
+console.log(`Static build: dist/ · ${DEFAULT_CONFIG.version} · ${revision} · ${files.length} files`);
