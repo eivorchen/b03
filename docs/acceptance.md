@@ -1,6 +1,18 @@
 # B03 0.2.0 本地验收记录
 
-日期：2026-10-16。当前依据：`prd.md` v0.3，应用版本 `0.2.0`。本轮只在此 Mac 的 `b03` 仓库开发与预览，不推送或部署。
+日期：2026-10-16。当前依据：`prd.md` v0.3，应用版本 `0.2.0`。
+
+## GitHub Pages 首次发布验证
+
+- 公开仓库：[eivorchen/b03](https://github.com/eivorchen/b03)。
+- 公开入口：[https://eivorchen.github.io/b03/](https://eivorchen.github.io/b03/)，强制 HTTPS，Actions 发布来源。
+- 发布配置提交：`fe7d5d5aa2aac78b69fe44061941f836800bf098`；[首次成功工作流](https://github.com/eivorchen/b03/actions/runs/38858692029)。
+- 部署前重新执行 `npm run check`：退出码 0，38/38 Node 测试、24/24 浏览器测试通过；[本次原始日志](./deployment-validation.log)。应用代码及构建标记 `c64cd316e5a7` 保持不变。
+- 线上资源：六个必要文件及 `release.json` 均 HTTP 200，与本地 `dist/` 内容一致；[核对数据](./deployment-assets.json)。
+- 公开页面：本机内置浏览器打开不带种子的正式入口，显示 `B03 · v0.2.0`；通过键盘选点和按钮确认完成两关各四次测量、定位提交及结果揭晓，切关恢复次数，重玩清空记录，刷新回开始页；[线上首页](./screenshots/live-home.png)。这些是流程检查，不是玩家难度评估。
+- 尚未完成：iOS / Android 真机、微信内置浏览器、校园 Wi-Fi / 移动网络、多台真机同时游玩、实际玩家试玩与印刷二维码。后续发布的旧缓存及版本切换也需持续核对。
+
+下文保留部署前的开发验收记录，其中“不推送或部署”等描述只对应当时的交付范围。
 
 ## 0.2.0 本轮验证
 

@@ -3,10 +3,22 @@
 - 更新日期：2026-10-16
 - 应用版本：**0.2.0**；需求版本：**PRD v0.3**
 - 项目目录：`/Users/eivorchen/Documents/大三/联络部/b03`
-- 已验收的代码提交：`c79ff34846ddd80a6b3aeb942e28d9f709990690`
+- 第二版功能提交：`c79ff34846ddd80a6b3aeb942e28d9f709990690`
+- 首次发布提交：`fe7d5d5aa2aac78b69fe44061941f836800bf098`（增加 Pages 工作流）
 - 构建标记：`c64cd316e5a7`
+- 公开仓库：[eivorchen/b03](https://github.com/eivorchen/b03)
+- 稳定游戏入口：[https://eivorchen.github.io/b03/](https://eivorchen.github.io/b03/)
 
-当前已完成可在本机游玩的双关卡原型及本地自动化验收。源码已提交；本次交接只补充本文档，不改变功能。尚未推送远程、部署 GitHub Pages 或制作正式二维码。
+双关卡原型已发布到 GitHub Pages，强制 HTTPS 已开启，首次 Actions 部署成功。本次已重新完成本机自动化验收，并在公开网址完成两关、切关、重玩和刷新检查；真机与现场网络验收、正式二维码仍待完成。本文是部署后的最新交接状态；下文注明为历史的验收记录保留此前证据，不代表本次重新执行了其中每项人工检查。
+
+## 发布状态与后续更新
+
+- Pages 发布来源：**GitHub Actions**（`build_type: workflow`）。
+- 首次成功发布：[Actions run 38858692029](https://github.com/eivorchen/b03/actions/runs/38858692029)。
+- 工作流：`.github/workflows/pages.yml`，在推送 `main` 或手动触发时运行。Node.js 24 环境依次执行 `npm ci --ignore-scripts`、`npm test`、`npm run build`，上传并部署 `dist/`。
+- 工作流按任务分配权限并串行发布，不中断正在进行的部署；测试或构建失败时不会部署。
+- 后续修改先在本机运行 `npm run check`，再提交并推送 `main`，检查 [Actions](https://github.com/eivorchen/b03/actions/workflows/pages.yml) 结果和线上页面。云端不运行本机 Chrome 浏览器测试，不能省略本地回归。
+- 正式入口保持为 `https://eivorchen.github.io/b03/`，不附带调试种子；`dist/` 由工作流生成，不提交到 Git。
 
 ## 已完成功能
 
@@ -31,6 +43,7 @@
 | `src/session.js` | 游戏状态机、测量计时、确认保护及异常恢复 |
 | `scripts/serve.js` | 本机开发和静态预览服务 |
 | `scripts/build.js` | 生成 `dist/` 与统一资源内容标记 |
+| `.github/workflows/pages.yml` | 自动测试、构建和 GitHub Pages 发布 |
 | `scripts/capture.js` | 对 4173 端口预览生成验收截图 |
 | `tests/`、`playwright.config.js` | Node 测试及本机 Chrome 浏览器回归 |
 | `docs/` | 实现说明、验收记录、测试日志与截图 |
@@ -70,21 +83,27 @@ npm ci --registry=https://registry.npmjs.org
 
 开发复现可使用 `http://127.0.0.1:4173/b03/?seed=b03-debug`；相同种子、配置及开局顺序得到相同源序列。正式入口不带调试种子。
 
-## 已完成的验证
+## 本次本机复验
 
-2026-10-16 对构建 **`c64cd316e5a7`** 执行 `npm run check`，退出码 **0**：
+2026-10-16 重新执行 `npm run check`，退出码 **0**。构建标记仍为 **`c64cd316e5a7`**，**38/38 项 Node 测试、24/24 项浏览器测试通过**。部署工作流也已成功完成 Node 测试、静态构建、产物上传和 Pages 发布。本次原始输出保存在 [部署前复验日志](./docs/deployment-validation.log)。
+
+公开入口在本机内置浏览器中完成两关各四次测量、确认定位和结果揭晓，以及切关、重玩与刷新回首页。页面显示 `v0.2.0`；六个必要文件及 `release.json` 均返回 HTTP 200，内容与本地构建一致，见 [资源核对](./docs/deployment-assets.json) 和 [线上首页截图](./docs/screenshots/live-home.png)。这不替代真实手机、微信或校园网络验收。
+
+## 历史验收证据（第二版交付）
+
+此前在 2026-10-16 对同一构建 **`c64cd316e5a7`** 执行 `npm run check`，退出码 **0**，记录如下：
 
 - **38/38 项 Node 测试通过**：22 项引擎、15 项状态机、1 项静态构建。
 - **24/24 项浏览器测试通过**：使用 Google Chrome **155.0.8059.40**，覆盖两关的 3/4/5 次流程、默认四次及一秒等待边界、连点防重、零偏差、多解指标、揭晓前无结果泄漏、重玩和切关、演示、触控与尺寸变化、当前页离线操作、加载失败恢复和项目子路径。
 - 已检查桌面及移动尺寸截图，包括 **1280×900、390×844、320×740**；窄屏无横向溢出的完整流程有自动化覆盖。
 
-以上是已验收代码版本的实际结果。本次只新增交接文档，未重新运行应用测试，也未将文档检查计入上述测试数量。详细证据见 [验收记录](./docs/acceptance.md)、[完整日志](./docs/validation.log) 和 [截图环境](./docs/screenshots/environment.json)。
+以上详细证据来自第二版交付，见 [验收记录中的历史部分](./docs/acceptance.md)、[历史完整日志](./docs/validation.log) 和 [历史截图环境](./docs/screenshots/environment.json)。历史部分保留原验收时的发布状态；当前远程仓库、网址及发布状态以本文为准。本次复验与线上检查使用独立日志和截图。
 
 ## 已知限制与未完成验收
 
 - Chrome 尺寸和触控模拟不能代替 iOS、Android 真机及微信内置浏览器；工具栏伸缩、安全区域、旋转和实际误触仍需实测。
-- 未验证校园 Wi-Fi、移动网络、公开 HTTPS 首次加载、多台真机同时游玩及印刷二维码。
-- GitHub Pages 是 PRD 计划的发布方式，实际仓库、发布来源、正式项目路径及游戏网址仍待确定；尚无正式发布地址。
+- 未验证校园 Wi-Fi、移动网络、真机首次加载、多台真机同时游玩及印刷二维码。
+- GitHub Pages 公开入口已在本机验证资源加载、直接访问和刷新；后续更新后的旧首页缓存及真机版本切换仍需观察。
 - 当前页面必要资源加载后可离线继续玩；不支持或承诺断网首次访问、离线刷新、关闭后重开、PWA 或离线缓存。
 - 所有代码和单局数据都在浏览器中，可被开发工具检查；没有抗作弊、账户、集中成绩存储、排行榜或兑奖核验机制。
 - 四次探测、一秒读条、演示长度、屏障位置、信号尺度和 5% / 10% 判定容差仍需玩家试玩评估。自动化通过率不代表玩家成功率或可理解性。
@@ -93,7 +112,7 @@ npm ci --registry=https://registry.npmjs.org
 
 1. 在 Codex 中打开此项目，先读本文、PRD 和验收记录；查看 `git status`，保留用户后续改动。按下一条明确需求继续，避免重新初始化项目或重复安装现成环境。
 2. 邀请 10—15 名非专业参与者试玩，记录规则理解、误触、单关用时、偏差及等级分布，再决定是否调整参数。
-3. 准备发布时，先确定仓库、Pages 发布来源和稳定 HTTPS 地址；部署后检查项目子路径、直接访问、刷新、全部资源与版本更新。
+3. 后续推送后关注 Actions 发布结果，并在稳定网址复核资源、版本及刷新表现。
 4. 在校园网和移动网络下，用 iOS / Android 的微信与系统浏览器完成扫码到揭晓、旋转及多设备独立游玩验收。
 5. 正式网址验证后再生成二维码，附文字网址，测试印刷尺寸并准备现场备用设备。后续代码变更完成后更新版本及验收记录，运行相应检查。
 
@@ -104,6 +123,6 @@ npm ci --registry=https://registry.npmjs.org
 - [prd.md](./prd.md)：当前 PRD v0.3，玩法、规则、验收项和发布要求。
 - [README.md](./README.md)：启动、构建、调试和项目入口。
 - [docs/implementation-notes.md](./docs/implementation-notes.md)：模型公式、候选求解、数值边界和实现约束。
-- [docs/acceptance.md](./docs/acceptance.md)：实际验证结果、历史记录和剩余验收缺口。
-- [docs/validation.log](./docs/validation.log)：最终通过的原始测试输出。
-- [docs/screenshots/](./docs/screenshots/)：桌面、手机尺寸与结果页截图。
+- [docs/acceptance.md](./docs/acceptance.md)：本次部署验证和第二版历史验收结果。
+- [docs/validation.log](./docs/validation.log)：第二版交付时通过的原始测试输出。
+- [docs/screenshots/](./docs/screenshots/)：第二版交付截图，以及本次发布的 `live-home.png`。

@@ -4,7 +4,9 @@
 
 本版依据 [PRD v0.3](./prd.md) 实现，版本为 **0.2.0**。默认四次测量、每次等待一秒，主界面精简，揭晓后显示定位偏差百分比。使用原生 HTML、CSS 和 JavaScript，无运行时依赖、账户或后端服务。应用不接入第三方统计 SDK。
 
-本轮交付包含源码、自动化测试和静态构建方式；**尚未推送远程、部署 GitHub Pages，也未生成正式二维码**。实际验证范围与未完成项见 [验收记录](./docs/acceptance.md)。
+已于 **2026-10-16** 发布到 GitHub Pages：**[打开「信号寻踪」](https://eivorchen.github.io/b03/)**。公开源码仓库为 [eivorchen/b03](https://github.com/eivorchen/b03)，已启用强制 HTTPS。后续向 `main` 推送代码会自动测试、构建并发布 `dist/`。
+
+本次已在本机重新执行 `npm run check`，**38 项 Node 测试和 24 项浏览器测试全部通过**，构建标记为 `c64cd316e5a7`。公开网址已验证资源加载、两关完整流程、切关、重玩和刷新；真机与现场网络验收、正式二维码仍需完成。最新进度见 [开发交接](./DEVELOPMENT_STATUS.md)，验证证据见 [验收记录](./docs/acceptance.md)。
 
 ## 本地运行
 
@@ -51,6 +53,12 @@ npm run preview
 
 构建为首页引用和各级模块引用附加同一个内容哈希版本标记，减少更新后混用不同构建资源的风险；页面显示游戏版本号，`dist/release.json` 记录构建标记。拿到新首页才会使用新标记，旧首页缓存仍需在发布验收时检查。
 
+## GitHub Pages 发布
+
+稳定入口为 **https://eivorchen.github.io/b03/**，发布来源为 GitHub Actions。工作流 [.github/workflows/pages.yml](./.github/workflows/pages.yml) 在 `main` 收到推送时运行，也可在 GitHub 的 Actions 页面手动触发。它使用 Node.js 24，依次安装锁定依赖、执行 `npm test`、运行 `npm run build`，再上传并发布 `dist/`；测试或构建失败时不会进入部署。
+
+首次部署已[成功完成](https://github.com/eivorchen/b03/actions/runs/38858692029)。后续修改应先在本机运行 `npm run check`，提交并推送 `main`，然后检查 [Actions 发布结果](https://github.com/eivorchen/b03/actions/workflows/pages.yml) 和线上页面。云端工作流运行 Node 测试，本机 Chrome 的完整浏览器回归仍需在发布前执行。无需将 `dist/` 提交到仓库。
+
 ## 游玩与调试
 
 - 开始页可直接选择任一关，观看独立的已知源演示，或直接开始。
@@ -82,17 +90,17 @@ http://127.0.0.1:4173/b03/?seed=b03-debug
 | `src/session.js` | 与界面分离的游戏状态机、测量计时和异常恢复 |
 | `scripts/serve.js` | 仅供本机的静态开发与预览服务器 |
 | `scripts/build.js` | 静态构建及统一资源版本标记 |
+| `.github/workflows/pages.yml` | `main` 自动测试、构建及 GitHub Pages 发布 |
 | `scripts/capture.js` | 对本机 4173 预览生成隔离 Chrome 验收截图 |
 | `tests/`、`playwright.config.js` | 自动化回归与本机 Chrome 配置 |
 | `docs/implementation-notes.md` | 模型、数值边界、实现选择与待验证参数 |
 | `docs/acceptance.md` | 实际执行的验证证据与剩余缺口 |
 
-## 发布前还需要完成
+## 上线后与活动前还需要完成
 
-1. 确定 GitHub 账号、仓库、发布来源、正式项目路径和 HTTPS 游戏网址，再执行部署。
-2. 在实际发布地址检查全部资源、版本更新、直接访问与刷新，确认旧入口和二维码保持稳定。
-3. 在校园 Wi-Fi 与移动网络，用 iOS / Android 微信及系统浏览器完成扫码到揭晓，记录设备、首次加载时间、触控与旋转表现。
-4. 完成多台真机独立游玩检查，邀请 10—15 名非专业参与者试玩，再决定是否调整参数。
-5. 正式网址验证后制作直接编码该网址的印刷二维码，附文字网址，测试实际尺寸样张，并准备现场备用设备。
+1. 后续更新后继续核对线上版本、资源、直接访问与刷新，确认入口保持稳定。
+2. 在校园 Wi-Fi 与移动网络，用 iOS / Android 微信及系统浏览器完成扫码到揭晓，记录设备、首次加载时间、触控与旋转表现。
+3. 完成多台真机独立游玩检查，邀请 10—15 名非专业参与者试玩，再决定是否调整参数。
+4. 正式网址验证后制作直接编码该网址的印刷二维码，附文字网址，测试实际尺寸样张，并准备现场备用设备。
 
 以上均不能由本机开发服务器或 Chrome 自动化结果替代。参数和当前实现边界详见 [实现备注](./docs/implementation-notes.md)。

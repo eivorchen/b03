@@ -1,0 +1,96 @@
+
+> b03-signal-trace@0.2.0 check
+> npm test && npm run test:release
+
+
+> b03-signal-trace@0.2.0 test
+> node --test tests/*.test.js
+
+✔ static release resolves every entry and module under an arbitrary project subpath with one release token (36.0035ms)
+✔ configuration creates independent immutable snapshots with the specified defaults (0.587333ms)
+✔ invalid settings fail early instead of silently changing the game rules (0.202417ms)
+✔ continuous points and wall-inclusive invalid regions follow logical coordinates (0.084667ms)
+✔ wall crossing requires positive interior length; corners, edges, and endpoints alone do not count (0.140042ms)
+✔ wall attenuation halves source contribution, preserves background, and never stacks (0.335958ms)
+✔ zero distance is finite, exact values are retained, and meter is fixed across readings (0.080458ms)
+✔ seeded continuous generation is reproducible, independent, margin-safe, and cannot hang on a constant RNG (1.122459ms)
+✔ three collinear observations retain both mirror candidates and recognize a reasonable alternative (0.299958ms)
+✔ fourth and fifth records are used to reject former mirror solutions and inconsistent data (0.184292ms)
+✔ second-level candidates reject algebraic mirrors that do not have the assumed actual attenuation (0.141708ms)
+✔ weak but similar readings do not make a nearby-looking wrong source valid (0.072209ms)
+✔ peak-distance, exact-collinear, near-collinear, and map-edge degeneracies preserve the true source (0.211334ms)
+✔ wall tangency is consistently handled in both reading and candidate validation (0.068084ms)
+✔ tightly clustered collinear measurements do not turn floating-point cancellation into a missing true source (5.045792ms)
+✔ corner tangency and the same line moved into the wall remain distinct under inversion (0.097458ms)
+✔ inclusive success and near boundaries use logical distances, while the next outside point does not pass (0.101834ms)
+✔ an exact guess reports zero error percentages without changing the successful grade (0.026292ms)
+✔ result percentages normalize by the short edge for either nonsquare map orientation (0.050458ms)
+✔ mirror solutions retain separate true-source and nearest-valid-candidate percentages (0.099667ms)
+✔ error percentages above one short edge are not clipped to 100 percent (0.038167ms)
+✔ missing true candidates trigger an explicit program anomaly rather than a failure grade (0.096041ms)
+✔ seeded property: true source survives all records for 3, 4, and 5 observations in both levels (27.815958ms)
+✔ selection is continuous, silent, cancellable, and never consumes a measurement (0.840416ms)
+✔ rapid confirmations and movement cannot alter a locked measurement or debit twice (0.177625ms)
+✔ default level 1 uses four one-second locked measurements and reveals percentages only after submission (0.52075ms)
+✔ default level 2 uses four one-second locked measurements and reveals percentages only after submission (0.710709ms)
+✔ invalid points, wall boundaries, and duplicate or nearby measurements are rejected (0.124458ms)
+✔ 3 measurements require a separate final selection and confirmation (0.1315ms)
+✔ 4 measurements require a separate final selection and confirmation (0.068209ms)
+✔ 5 measurements require a separate final selection and confirmation (0.079834ms)
+✔ next-game configuration cannot alter an in-progress game or its timer (0.143833ms)
+✔ replaying or changing levels during measurement discards all previous work (0.124417ms)
+✔ returning home cancels a measurement and retains next-game settings (0.063625ms)
+✔ automatic source generation excludes the previous source even with a fixed RNG (0.230917ms)
+✔ missing true-source candidates enter a recoverable error and do not count as a loss (0.120708ms)
+✔ a thrown solver failure also preserves the submitted guess and all measurements (0.076375ms)
+✔ game instances keep their source, records, settings, and progress independent (0.060875ms)
+ℹ tests 38
+ℹ suites 0
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 71.049583
+
+> b03-signal-trace@0.2.0 test:release
+> npm run build && B03_TEST_BUILD=1 playwright test
+
+
+> b03-signal-trace@0.2.0 build
+> node scripts/build.js
+
+Static build: dist/ · 0.2.0 · c64cd316e5a7 · 6 files
+[WebServer] (node:23133) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 24 tests using 1 worker
+
+(node:23134) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/browser.spec.js:145:3 › level 1 starts directly with four one-second measurements and reveals no result metrics early (2.0s)
+  ✓   2 tests/browser.spec.js:145:3 › level 2 starts directly with four one-second measurements and reveals no result metrics early (1.9s)
+  ✓   3 tests/browser.spec.js:186:1 › an exact source submission displays a zero error of 0.00% (1.5s)
+  ✓   4 tests/browser.spec.js:204:5 › level 1 completes 3 measurements with separate, guarded confirmations (2.0s)
+  ✓   5 tests/browser.spec.js:204:5 › level 1 completes 4 measurements with separate, guarded confirmations (2.4s)
+  ✓   6 tests/browser.spec.js:204:5 › level 1 completes 5 measurements with separate, guarded confirmations (2.9s)
+  ✓   7 tests/browser.spec.js:204:5 › level 2 completes 3 measurements with separate, guarded confirmations (2.1s)
+  ✓   8 tests/browser.spec.js:204:5 › level 2 completes 4 measurements with separate, guarded confirmations (2.5s)
+  ✓   9 tests/browser.spec.js:204:5 › level 2 completes 5 measurements with separate, guarded confirmations (3.1s)
+  ✓  10 tests/browser.spec.js:259:1 › replay, level switch and home cancel in-flight work without stale completions (4.5s)
+  ✓  11 tests/browser.spec.js:286:1 › history only emphasizes the selected point and cannot reveal another reading (1.2s)
+  ✓  12 tests/browser.spec.js:302:3 › level 1 demo can finish, replay and skip without stopping later game timers (4.8s)
+  ✓  13 tests/browser.spec.js:302:3 › level 2 demo can finish, replay and skip without stopping later game timers (4.8s)
+  ✓  14 tests/browser.spec.js:325:1 › a result-page demo returns to the same result and can start a fresh game (5.6s)
+  ✓  15 tests/browser.spec.js:344:1 › collinear measurements recognize a distinct mirrored source without previewing candidates (1.4s)
+  ✓  16 tests/browser.spec.js:381:3 › mobile-sized Chrome emulation (not a substitute for physical phone testing) › touch scrolling, cancelled pointers and multiple fingers do not select or spend measurements (555ms)
+  ✓  17 tests/browser.spec.js:413:3 › mobile-sized Chrome emulation (not a substitute for physical phone testing) › portrait-to-landscape resize preserves coordinates, readings, pending point and hidden source (1.7s)
+  ✓  18 tests/browser.spec.js:438:3 › mobile-sized Chrome emulation (not a substitute for physical phone testing) › a 320px-wide phone has no horizontal overflow and can finish, inspect results and replay (2.6s)
+  ✓  19 tests/browser.spec.js:474:1 › after loading, both levels, demos and replay complete with the browser offline (12.3s)
+  ✓  20 tests/browser.spec.js:499:1 › two open pages keep independent configuration, measurements and replay state (1.3s)
+  ✓  21 tests/browser.spec.js:517:3 › failed application module shows a retry that recovers (232ms)
+  ✓  22 tests/browser.spec.js:517:3 › failed stylesheet shows a retry that recovers (217ms)
+  ✓  23 tests/browser.spec.js:533:1 › project-subpath resources load and direct reload returns to a usable start page (705ms)
+  ✓  24 tests/browser.spec.js:552:1 › a stalled required module times out to a recoverable resource error (304ms)
+
+  24 passed (1.1m)
