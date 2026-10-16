@@ -1,0 +1,415 @@
+import { test, expect } from '@playwright/test';
+import { DEFAULT_CONFIG } from '../src/config.js';
+import { generateSource, seededRandom } from '../src/engine.js';
+
+// Interact exclusively through the page's controls and rendered DOM. Expected
+// locations are independently generated from the documented debug seed; no
+// hidden browser game state is exposed or modified by these tests.
+const points = [
+  { x: 180, y: 140 }, { x: 1400, y: 140 }, { x: 180, y: 860 },
+  { x: 1400, y: 860 }, { x: 580, y: 650 },
+];
+const pageErrors = new WeakMap();
+const action = (page, name) => page.locator(`[data-action="${name}"]`);
+const recordButtons = page => page.locator('button[data-record]');
+
+test.beforeEach(async ({ context }) => {
+  const errors = [];
+  pageErrors.set(context, errors);
+  const observe = page => page.on('pageerror', error => errors.push(error.message));
+  context.pages().forEach(observe);
+  context.on('page', observe);
+});
+
+test.afterEach(async ({ context }) => {
+  expect(pageErrors.get(context), 'Every opened game page must remain free of uncaught errors').toEqual([]);
+});
+
+async function openGame(page, seed = 'browser-default') {
+  await page.clock.install();
+  await page.goto(`./?seed=${encodeURIComponent(seed)}`);
+  await expect(page.locator('#app')).toBeVisible();
+  await expect(action(page, 'start')).toBeVisible();
+  // Freeze elapsed time between interactions; runFor advances real application
+  // timers and animation frames without changing its rules or configuration.
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+}
+
+async function configure(page, measurements = 3, measurementMs = 1000) {
+  const settings = page.locator('details.settings');
+  if (!await settings.evaluate(element => element.open)) await settings.locator('summary').click();
+  await page.getByLabel('每关测量次数', { exact: true }).selectOption(String(measurements));
+  await page.getByLabel('每次测量等待', { exact: true }).selectOption(String(measurementMs));
+}
+
+async function startGame(page, { level = 1, measurements = 3, measurementMs = 1000 } = {}) {
+  await configure(page, measurements, measurementMs);
+  await page.locator(`[data-level="${level}"]`).click();
+  await action(page, 'start').click();
+  await expect(page.locator('.game-title')).toHaveText(level === 1 ? '基础定位' : '隔墙寻源');
+  await expect(page.locator('.game-meta .pill')).toHaveText(`已用 0 / ${measurements} 次`);
+}
+
+async function choosePoint(page, point) {
+  const field = page.locator('#field');
+  await field.scrollIntoViewIfNeeded();
+  const bounds = await field.boundingBox();
+  expect(bounds).not.toBeNull();
+  await field.click({ position: {
+    x: point.x / DEFAULT_CONFIG.width * bounds.width,
+    y: point.y / DEFAULT_CONFIG.height * bounds.height,
+  } });
+}
+
+async function finishMeasurement(page, point, index, duration = 1000) {
+  await choosePoint(page, point);
+  await expect(action(page, 'measure')).toBeEnabled();
+  await action(page, 'measure').click();
+  await expect(recordButtons(page)).toHaveCount(index);
+  await page.clock.runFor(duration + 50);
+  await expect(recordButtons(page)).toHaveCount(index + 1);
+}
+
+async function completeGame(page, measurements = 3, guess = { x: 300, y: 400 }) {
+  for (let index = 0; index < measurements; index += 1) {
+    await finishMeasurement(page, points[index], index);
+  }
+  await expect(action(page, 'submit')).toBeDisabled();
+  await choosePoint(page, guess);
+  await expect(page.locator('.result-panel')).toHaveCount(0);
+  await action(page, 'submit').click();
+  await expect(page.locator('.result-panel')).toBeVisible();
+}
+
+async function publicSnapshot(page) {
+  return {
+    count: await page.locator('.game-meta .pill').innerText(),
+    reading: await page.locator('#reading').innerText(),
+    comparison: await page.locator('#comparison').innerText(),
+    records: await recordButtons(page).allTextContents(),
+    measurements: await page.locator('#field .measurement').evaluateAll(elements => elements.map(element => element.getAttribute('transform'))),
+    pending: await page.locator('#field .pending').getAttribute('transform').catch(() => null),
+  };
+}
+
+for (const level of [1, 2]) {
+  for (const measurements of [3, 4, 5]) {
+    test(`level ${level} completes ${measurements} measurements with separate, guarded confirmations`, async ({ page }) => {
+      const seed = `browser-level-${level}-count-${measurements}`;
+      const source = generateSource(level, DEFAULT_CONFIG, seededRandom(seed));
+      await openGame(page, seed);
+      await startGame(page, { level, measurements });
+      await expect(page.locator('#field .wall')).toHaveCount(level === 2 ? 1 : 0);
+      await expect(page.locator('.record')).toHaveCount(measurements);
+      await expect(action(page, 'measure')).toBeDisabled();
+      for (let index = 0; index < measurements; index += 1) {
+        const previousReading = await page.locator('#reading').innerText();
+        await choosePoint(page, points[index]);
+        await expect(page.locator('.game-meta .pill')).toHaveText(`已用 ${index} / ${measurements} 次`);
+        await expect(page.locator('#reading')).toHaveText(previousReading, { useInnerText: true });
+        await expect(page.locator('#field .true-source, #field .candidate')).toHaveCount(0);
+        if (index === 0) {
+          await action(page, 'cancel').click();
+          await expect(page.locator('#field .pending')).toHaveCount(0);
+          await expect(action(page, 'measure')).toBeDisabled();
+          await choosePoint(page, points[index]);
+        }
+        await action(page, 'measure').click();
+        // Dispatch repeated confirmation attempts against the public button;
+        // its disabled state and delegated click guard must reject each one.
+        for (let repeat = 0; repeat < 5; repeat += 1) await action(page, 'measure').dispatchEvent('click');
+        await expect(page.locator('.game-meta .pill')).toHaveText(`已用 ${index + 1} / ${measurements} 次`);
+        await expect(recordButtons(page)).toHaveCount(index);
+        await expect(action(page, 'cancel')).toBeDisabled();
+        const locked = await page.locator('#field .pending').getAttribute('transform');
+        await choosePoint(page, { x: 650, y: 100 });
+        await expect(page.locator('#field .pending')).toHaveAttribute('transform', locked);
+        await page.clock.runFor(1050);
+        await expect(recordButtons(page)).toHaveCount(index + 1);
+      }
+      await expect(action(page, 'submit')).toBeDisabled();
+      const reading = await page.locator('#reading').innerText();
+      await choosePoint(page, { x: 100, y: 50 });
+      await action(page, 'cancel').click();
+      await expect(action(page, 'submit')).toBeDisabled();
+      await choosePoint(page, source);
+      await expect(page.locator('#reading')).toHaveText(reading, { useInnerText: true });
+      await expect(page.locator('#field .true-source')).toHaveCount(0);
+      await action(page, 'submit').click();
+      await expect(page.locator('.result-title')).toHaveText('定位成功');
+      await expect(page.locator('#field .true-source')).toHaveCount(1);
+      await expect(page.locator('.result-stats')).toContainText(`${measurements} 次测量`);
+      await expect(recordButtons(page)).toHaveCount(measurements);
+      if (level === 2) await expect(page.locator('#field .source-path')).toHaveCount(measurements);
+    });
+  }
+}
+
+test('replay, level switch and home cancel in-flight work without stale completions', async ({ page }) => {
+  await openGame(page);
+  await startGame(page, { measurementMs: 3000 });
+  await choosePoint(page, points[0]);
+  await action(page, 'measure').click();
+  await page.clock.runFor(1500);
+  await action(page, 'restart').click();
+  await page.clock.runFor(4000);
+  await expect(recordButtons(page)).toHaveCount(0);
+  await expect(page.locator('.game-meta .pill')).toHaveText('已用 0 / 3 次');
+  await choosePoint(page, points[1]);
+  await action(page, 'measure').click();
+  await action(page, 'switch').click();
+  await page.clock.runFor(4000);
+  await expect(page.locator('.game-title')).toHaveText('隔墙寻源');
+  await expect(recordButtons(page)).toHaveCount(0);
+  await expect(page.locator('.game-meta .pill')).toHaveText('已用 0 / 3 次');
+  await choosePoint(page, points[2]);
+  await action(page, 'measure').click();
+  await action(page, 'home').last().click();
+  await page.clock.runFor(4000);
+  await expect(page.locator('.hero-title')).toBeVisible();
+  await action(page, 'start').click();
+  await expect(recordButtons(page)).toHaveCount(0);
+  await expect(page.locator('.game-meta .pill')).toHaveText('已用 0 / 3 次');
+});
+
+test('history only emphasizes the selected point and cannot reveal another reading', async ({ page }) => {
+  await openGame(page);
+  await startGame(page);
+  await finishMeasurement(page, points[0], 0);
+  await finishMeasurement(page, points[1], 1);
+  await choosePoint(page, points[2]);
+  const before = await publicSnapshot(page);
+  await page.locator('[data-record="0"]').click();
+  expect(await publicSnapshot(page)).toEqual(before);
+  await expect(page.locator('#field .measurement.selected')).toHaveCount(1);
+  await expect(page.locator('#field .true-source, #field .candidate, #field .source-path')).toHaveCount(0);
+  await page.locator('[data-record="1"]').click();
+  expect(await publicSnapshot(page)).toEqual(before);
+});
+
+for (const level of [1, 2]) {
+  test(`level ${level} demo can finish, replay and skip without stopping later game timers`, async ({ page }) => {
+    await openGame(page);
+    await configure(page);
+    await page.locator(`[data-level="${level}"]`).click();
+    await action(page, 'demo').click();
+    await expect(page.locator('#field .true-source')).toHaveCount(1);
+    await expect(page.locator('.game-meta')).toHaveCount(0);
+    await page.clock.runFor(12_100);
+    await expect(page.locator('.game-heading .pill')).toContainText('演示完成');
+    await page.clock.runFor(250); // Regression: a completed demo must survive subsequent frames.
+    await action(page, 'replay-demo').click();
+    await expect(page.locator('.game-heading .pill')).toContainText('12');
+    await page.clock.runFor(1000);
+    await action(page, 'demo-back').click();
+    await expect(page.locator('.hero-title')).toBeVisible();
+    await action(page, 'demo').click();
+    await action(page, 'start').click();
+    await expect(page.locator('.game-meta .pill')).toHaveText('已用 0 / 3 次');
+    await expect(page.locator('#field .true-source')).toHaveCount(0);
+    await finishMeasurement(page, points[0], 0);
+  });
+}
+
+test('a result-page demo returns to the same result and can start a fresh game', async ({ page }) => {
+  await openGame(page);
+  await startGame(page);
+  await completeGame(page);
+  const originalResult = await page.locator('.result-panel').innerText();
+  const originalSource = await page.locator('#field .true-source').getAttribute('transform');
+  await action(page, 'demo').click();
+  await expect(page.locator('.demo-panel')).toBeVisible();
+  await page.clock.runFor(12_100);
+  await action(page, 'demo-back').click();
+  await expect(page.locator('.result-panel')).toHaveText(originalResult, { useInnerText: true });
+  await expect(page.locator('#field .true-source')).toHaveAttribute('transform', originalSource);
+  await action(page, 'demo').click();
+  await action(page, 'start').click();
+  await expect(recordButtons(page)).toHaveCount(0);
+  await expect(page.locator('.game-meta .pill')).toHaveText('已用 0 / 3 次');
+  await finishMeasurement(page, points[0], 0);
+});
+
+test('collinear measurements recognize a distinct mirrored source without previewing candidates', async ({ page }) => {
+  let seed, source;
+  for (let index = 0; index < 100; index += 1) {
+    seed = `browser-mirror-${index}`;
+    source = generateSource(1, DEFAULT_CONFIG, seededRandom(seed));
+    if (Math.abs(source.y - DEFAULT_CONFIG.height / 2) > 150) break;
+  }
+  expect(Math.abs(source.y - DEFAULT_CONFIG.height / 2)).toBeGreaterThan(150);
+  await openGame(page, seed);
+  await startGame(page);
+  // Keyboard selection gives exactly collinear logical y coordinates without
+  // depending on subpixel pointer rounding at the current viewport size.
+  for (const [index, keys] of [
+    ['ArrowLeft', 'ArrowLeft', 'ArrowLeft'], ['Enter'], ['ArrowRight', 'ArrowRight', 'ArrowRight'],
+  ].entries()) {
+    for (const key of keys) await page.locator('#field').press(key);
+    if (index === 2) await expect(page.locator('.hint')).toContainText('换个方向');
+    await action(page, 'measure').click();
+    await page.clock.runFor(1050);
+    await expect(recordButtons(page)).toHaveCount(index + 1);
+  }
+  await expect(page.locator('#field .candidate, #field .true-source')).toHaveCount(0);
+  await choosePoint(page, { x: source.x, y: DEFAULT_CONFIG.height - source.y });
+  await action(page, 'submit').click();
+  await expect(page.locator('.result-title')).toContainText('合理判断');
+  await expect(page.locator('.result-feedback')).toContainText('现有信息尚不能区分');
+  await expect(page.locator('#field .candidate')).toHaveCount(1);
+});
+
+test.describe('mobile-sized Chrome emulation (not a substitute for physical phone testing)', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
+
+  test('touch scrolling, cancelled pointers and multiple fingers do not select or spend measurements', async ({ page, context }) => {
+    await openGame(page);
+    await startGame(page);
+    const field = page.locator('#field');
+    await field.scrollIntoViewIfNeeded();
+    const box = await field.boundingBox();
+    const origin = { x: box.x + box.width * 0.2, y: box.y + box.height * 0.2 };
+    const touch = (id, x = origin.x, y = origin.y) => ({ id, x, y, radiusX: 1, radiusY: 1, force: 1 });
+    // Chrome input dispatch creates active, trusted touch pointers, so the
+    // application's pointer capture and native scroll cancellation also run.
+    const input = await context.newCDPSession(page);
+    await input.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [touch(1), touch(2, origin.x + 40)] });
+    await input.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await input.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [touch(3)] });
+    await input.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+    await input.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [touch(4)] });
+    await input.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [touch(4, origin.x, origin.y - 70)] });
+    await input.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await expect(page.locator('#field .pending')).toHaveCount(0);
+    await expect(action(page, 'measure')).toBeDisabled();
+    await expect(page.locator('.game-meta .pill')).toHaveText('已用 0 / 3 次');
+    await field.scrollIntoViewIfNeeded();
+    const current = await field.boundingBox();
+    await page.touchscreen.tap(current.x + current.width * 0.2, current.y + current.height * 0.2);
+    // A cancelled gesture must not permanently block the next independent tap.
+    await expect(page.locator('#field .pending')).toHaveCount(1);
+    await expect(page.locator('.game-meta .pill')).toHaveText('已用 0 / 3 次');
+    await action(page, 'cancel').click();
+    await expect(page.locator('#field .pending')).toHaveCount(0);
+    await input.detach();
+  });
+
+  test('portrait-to-landscape resize preserves coordinates, readings, pending point and hidden source', async ({ page }) => {
+    const seed = 'browser-resize';
+    const source = generateSource(1, DEFAULT_CONFIG, seededRandom(seed));
+    await openGame(page, seed);
+    await startGame(page);
+    await finishMeasurement(page, points[0], 0);
+    await choosePoint(page, points[1]);
+    const before = await publicSnapshot(page);
+    for (const viewport of [{ width: 844, height: 390 }, { width: 390, height: 760 }]) {
+      await page.setViewportSize(viewport);
+      await page.clock.runFor(50);
+      expect(await publicSnapshot(page)).toEqual(before);
+      const bounds = await page.locator('#field').boundingBox();
+      expect(bounds.width / bounds.height).toBeCloseTo(1.6, 2);
+      expect(bounds.width).toBeLessThanOrEqual(viewport.width);
+      expect(bounds.height).toBeLessThanOrEqual(viewport.height);
+      await expect(page.locator('#field .true-source')).toHaveCount(0);
+    }
+    await finishMeasurement(page, points[1], 1);
+    await finishMeasurement(page, points[2], 2);
+    await choosePoint(page, source);
+    await action(page, 'submit').click();
+    await expect(page.locator('.result-title')).toHaveText('定位成功');
+  });
+});
+
+test('after loading, both levels, demos and replay complete with the browser offline', async ({ page, context }) => {
+  await openGame(page);
+  await configure(page);
+  await context.setOffline(true);
+  try {
+    await action(page, 'demo').click();
+    await page.clock.runFor(12_100);
+    await action(page, 'start').click();
+    await completeGame(page);
+    await action(page, 'switch').click();
+    await expect(page.locator('.game-title')).toHaveText('隔墙寻源');
+    await completeGame(page);
+    await action(page, 'demo').click();
+    await page.clock.runFor(12_100);
+    await action(page, 'replay-demo').click();
+    await page.clock.runFor(5000);
+    await action(page, 'start').click();
+    await finishMeasurement(page, points[0], 0);
+    await action(page, 'restart').click();
+    await finishMeasurement(page, points[1], 0);
+  } finally {
+    await context.setOffline(false);
+  }
+});
+
+test('two open pages keep independent configuration, measurements and replay state', async ({ page, context }) => {
+  const other = await context.newPage();
+  await openGame(page, 'browser-device-one');
+  await openGame(other, 'browser-device-two');
+  await startGame(page);
+  await startGame(other, { level: 2, measurements: 5 });
+  await finishMeasurement(page, points[0], 0);
+  await expect(recordButtons(other)).toHaveCount(0);
+  await expect(other.locator('.game-meta .pill')).toHaveText('已用 0 / 5 次');
+  await finishMeasurement(other, points[1], 0);
+  await action(other, 'restart').click();
+  await expect(recordButtons(page)).toHaveCount(1);
+  await expect(page.locator('.game-meta .pill')).toHaveText('已用 1 / 3 次');
+  await expect(recordButtons(other)).toHaveCount(0);
+  await other.close();
+});
+
+for (const blocked of ['**/src/app.js*', '**/styles.css*']) {
+  test(`failed ${blocked.includes('app.js') ? 'application module' : 'stylesheet'} shows a retry that recovers`, async ({ page }) => {
+    await page.clock.install();
+    await page.route(blocked, route => route.abort('failed'));
+    await page.goto('./');
+    await page.clock.runFor(8100);
+    await expect(page.locator('#loading-message')).toContainText('资源暂时未能加载');
+    await expect(page.locator('#retry-load')).toBeVisible();
+    await expect(page.locator('#app')).toBeHidden();
+    await page.unroute(blocked);
+    await page.locator('#retry-load').click();
+    await expect(page.locator('#app')).toBeVisible();
+    await expect(action(page, 'start')).toBeVisible();
+    await expect(page.locator('#loading')).toBeHidden();
+  });
+}
+
+test('project-subpath resources load and direct reload returns to a usable start page', async ({ page }) => {
+  const assets = [];
+  page.on('response', response => {
+    const url = new URL(response.url());
+    if (/\.(js|css)$/.test(url.pathname)) assets.push({ pathname: url.pathname, status: response.status() });
+  });
+  await openGame(page, 'browser-subpath');
+  expect(assets.length).toBeGreaterThanOrEqual(5);
+  expect(assets.every(asset => asset.pathname.startsWith('/b03/') && asset.status === 200)).toBe(true);
+  await startGame(page);
+  await finishMeasurement(page, points[0], 0);
+  await page.reload();
+  await expect(page.locator('#app')).toBeVisible();
+  await expect(page.locator('.hero-title')).toBeVisible();
+  await action(page, 'start').click();
+  await expect(page.locator('.game-meta .pill')).toHaveText('已用 0 / 3 次');
+  await expect(page.locator('#field .true-source')).toHaveCount(0);
+});
+
+test('a stalled required module times out to a recoverable resource error', async ({ page }) => {
+  await page.clock.install();
+  let stalled;
+  await page.route('**/src/engine.js*', route => { stalled=route; });
+  await page.goto('./', { waitUntil:'domcontentloaded' });
+  await expect.poll(() => Boolean(stalled)).toBe(true);
+  await page.clock.runFor(12_100);
+  await expect(page.locator('#loading-message')).toContainText('资源暂时未能加载');
+  await expect(page.locator('#retry-load')).toBeVisible();
+  await expect(page.locator('#app')).toBeHidden();
+  await stalled.abort('failed');
+  await page.unroute('**/src/engine.js*');
+  await page.locator('#retry-load').click();
+  await expect(page.locator('#app')).toBeVisible();
+});
