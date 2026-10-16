@@ -487,6 +487,69 @@ h1.game-title { margin: 0; font-size: 22px; }
   .records { grid-template-columns: 1fr; }
 }
 
+/* Keep the reference ruler and drawing at exactly the same displayed scale. */
+.map-surface { width: 100%; margin-inline: auto; }
+.map-surface .map-wrap { width: 100%; }
+.signal-reference { padding-bottom: 14px; color: var(--ink); }
+.reference-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.reference-heading h2 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.5; }
+.reference-formula { font-size: 16px; line-height: 1.4; white-space: nowrap; }
+.reference-formula sup { font-size: .75em; }
+.reference-formula small { display: block; color: var(--muted); font-size: 13px; text-align: right; }
+.reference-ruler { position: relative; height: 48px; margin-top: 27px; border-top: 2px solid var(--strong-line); }
+.reference-ruler::before, .reference-ruler::after { content: ''; position: absolute; top: -2px; width: 0; height: 10px; border-left: 2px solid var(--strong-line); }
+.reference-ruler::before { left: 0; }
+.reference-ruler::after { right: 0; }
+.reference-origin { position: absolute; top: -25px; left: 0; font-size: 14px; }
+.reference-tick { position: absolute; top: -2px; width: 0; height: 10px; border-left: 2px solid var(--ink); }
+.reference-tick-label { position: absolute; left: -1px; top: 12px; transform: translateX(-50%); text-align: center; white-space: nowrap; line-height: 1.4; }
+.reference-tick strong { display: block; font-size: 15px; font-weight: 600; }
+.reference-tick small { display: block; color: var(--muted); font-size: 14px; }
+.reference-outside, .reference-note { margin: 4px 0 0; font-size: 14px; line-height: 1.55; }
+.reference-note { color: var(--muted); }
+
+/* Only the glyph is scaled back to CSS pixels, never the stored point position. */
+.marker-glyph { stroke-width: 2px; }
+.selected .marker-glyph { stroke-width: 3px; }
+.marker-glyph text, .wall-label, .path-label {
+  font: 600 16px var(--mono);
+  dominant-baseline: central;
+  stroke: var(--paper-light);
+  stroke-width: 3px;
+  paint-order: stroke fill;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.map-caption, .legend { font-size: 14px; }
+@media (orientation: landscape) {
+  .map-surface { width: min(100%, calc((100svh - 180px) * var(--map-ratio, 1.6))); }
+}
+@media (max-width: 740px), (pointer: coarse) {
+  .version { font-size: 12px; }
+  .brand-copy { font-size: 16px; }
+  .lede, .level-body strong, .button, .status-copy { font-size: 16px; }
+  .level-body span, .round-summary, .settings, .help, .comparison,
+  .hint, .result-feedback, .records-panel h2, .instrument-top { font-size: 15px; }
+  .utility-actions .button, .meter-scale, .record-no, .record-content small,
+  .record.empty, .metric-note, .result-stats span, .site-footer { font-size: 14px; }
+  .badge, .record .badge, .pill, .clock { font-size: 13px; }
+  .record-reading { font-size: 18px; }
+  .record-no { width: 28px; height: 28px; flex-basis: 28px; }
+  .record, .record.empty { min-height: 62px; }
+  .reading { font-size: 40px; }
+  .level-option { padding: 12px 10px; gap: 7px; }
+  .level-no { flex-basis: 20px; }
+  .settings select { font-size: 16px; }
+}
+@media (max-width: 350px) {
+  .records { grid-template-columns: 1fr; }
+  .game-heading { gap: 6px; }
+  .pill { padding-inline: 6px; }
+}
+@media (orientation: landscape) and (max-height: 540px) {
+  .map-surface { width: min(100%, calc((100svh - 140px) * var(--map-ratio, 1.6))); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
 }

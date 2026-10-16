@@ -55,6 +55,32 @@ export function signal(source, point, level, config) {
   return { value: config.b + sourceContribution, sourceContribution, attenuated };
 }
 
+/** Invert a total reading into logical distance; impossible readings have no distance. */
+export function distanceForReading(value, config, attenuated = false) {
+  const strength = (attenuated ? config.wallTransmission : 1) * config.K;
+  const peak = config.b + strength / (config.h * config.h);
+  if (!Number.isFinite(value) || value <= config.b || value > peak) return null;
+  if (value === peak) return 0;
+  const radiusSquare = strength / (value - config.b) - config.h * config.h;
+  const result = Math.sqrt(Math.max(0, radiusSquare)) * Math.min(config.width, config.height);
+  return Number.isFinite(result) ? result : null;
+}
+
+/** Static, unobstructed references depend only on configuration, never the hidden source. */
+export function readingReferences(config, values = [10, 100, 1000]) {
+  const shortEdge = Math.min(config.width, config.height);
+  const diagonal = Math.hypot(config.width, config.height);
+  return values.map(value => {
+    const referenceDistance = distanceForReading(value, config);
+    return {
+      value,
+      distance: referenceDistance,
+      ratio: referenceDistance === null ? null : referenceDistance / shortEdge,
+      exceedsMap: referenceDistance !== null && referenceDistance > diagonal,
+    };
+  });
+}
+
 /** Accepts the total reading; subtract background exactly once for the fixed meter. */
 export function meter(value, config) {
   if (!Number.isFinite(value)) return 0;

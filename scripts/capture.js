@@ -1,19 +1,31 @@
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { DEFAULT_CONFIG } from '../src/config.js';
 import { seededRandom, generateSource } from '../src/engine.js';
 
 // Reproducible visual evidence against the local preview, using an isolated browser.
-const output=new URL('../docs/screenshots/',import.meta.url);
+const output=new URL(`../docs/screenshots/${DEFAULT_CONFIG.version}/`,import.meta.url);
 await mkdir(output,{recursive:true});
 const browser=await chromium.launch({channel:'chrome',headless:true});
 try {
   const context=await browser.newContext({viewport:{width:1280,height:900},reducedMotion:'reduce'});
   const page=await context.newPage();
+  async function capture(name) {
+    await page.evaluate(()=>window.scrollTo(0,0));
+    if(await page.locator('.marker-glyph text').count()) {
+      // ResizeObserver updates SVG glyph scale after viewport changes.
+      await expect.poll(()=>page.locator('.marker-glyph text').first().evaluate(el=>{
+        const matrix=el.getScreenCTM();
+        return Math.round(parseFloat(getComputedStyle(el).fontSize)*Math.hypot(matrix.a,matrix.b));
+      })).toBe(16);
+    }
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    await page.screenshot({path:fileURLToPath(new URL(name,output)),fullPage:true});
+  }
   await page.goto('http://127.0.0.1:4173/b03/?seed=acceptance-visual');
   await page.locator('#app').waitFor({state:'visible'});
-  await page.screenshot({path:fileURLToPath(new URL('desktop-home.png',output)),fullPage:true});
+  await capture('desktop-home.png');
   await page.locator('[data-level="2"]').click();
   await page.locator('[data-action="start"]').click();
   async function select(point) {
@@ -28,14 +40,14 @@ try {
     await page.locator(`button[data-record="${count-1}"]`).waitFor({state:'visible'});
   }
   await page.setViewportSize({width:390,height:844});
-  await page.screenshot({path:fileURLToPath(new URL('mobile-locate.png',output)),fullPage:true});
+  await capture('mobile-locate.png');
   await page.setViewportSize({width:320,height:740});
-  await page.screenshot({path:fileURLToPath(new URL('narrow-locate.png',output)),fullPage:true});
+  await capture('narrow-locate.png');
   await page.setViewportSize({width:1280,height:900});
   await select(generateSource(2,DEFAULT_CONFIG,seededRandom('acceptance-visual')));
   await page.locator('[data-action="submit"]').click();
   await page.locator('.result-panel').waitFor({state:'visible'});
-  await page.screenshot({path:fileURLToPath(new URL('desktop-result.png',output)),fullPage:true});
+  await capture('desktop-result.png');
   const environment={date:new Date().toISOString(),version:DEFAULT_CONFIG.version,browser:browser.version(),node:process.version,platform:process.platform,arch:process.arch,viewports:['1280x900','390x844','320x740'],url:'http://127.0.0.1:4173/b03/',note:'本机 Chrome 与尺寸模拟；不代表真手机或微信验收。'};
   await writeFile(new URL('environment.json',output),JSON.stringify(environment,null,2)+'\n');
   console.log(JSON.stringify(environment));

@@ -1,6 +1,6 @@
 import { DEFAULT_CONFIG } from './config.js';
 import { GameSession } from './session.js';
-import { distance, signal, meter, seededRandom, wallForLevel } from './engine.js';
+import { distance, signal, meter, seededRandom, wallForLevel, readingReferences } from './engine.js';
 
 const $ = (selector) => document.querySelector(selector);
 const root = $('#app');
@@ -14,6 +14,7 @@ let selectedRecord = -1;
 let notice = '';
 let lastPhase = '';
 let lastClock = '';
+let mapObserver = null;
 const titles = { 1: '基础定位', 2: '隔墙寻源' };
 const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const time = ms => `${Math.floor(ms / 60000).toString().padStart(2, '0')}:${Math.floor(ms / 1000 % 60).toString().padStart(2, '0')}`;
@@ -37,30 +38,36 @@ function baseMap(config) {
   const { width:w, height:h } = config;
   return `<rect class="map-land" width="${w}" height="${h}"/><g transform="scale(${w/1600} ${h/1000})" aria-hidden="true"><path class="map-river" d="M-100 760 C300 720 330 990 710 880 S1150 560 1700 700"/><path class="map-contour" d="M-70 240 Q250 60 480 220 T930 130 T1700 230 M-70 300 Q250 120 480 280 T930 190 T1700 290 M-70 360 Q250 180 480 340 T930 250 T1700 350"/><path class="map-path" d="M170 0 L270 380 L130 740 L190 1000 M0 530 Q450 430 640 550 T1600 420 M1350 0 L1270 410 L1380 1000"/></g>`;
 }
+function mapUnitsPerPixel(config) {
+  const width = $('#field')?.getBoundingClientRect().width || Math.min(800, window.innerWidth - 36);
+  return config.width / Math.max(1, width);
+}
 function marker(point, type, label, extra = '') {
   const x=Number(point.x), y=Number(point.y);
   const config=screen==='demo'?demo.config:game.state.config;
-  const labelY=type==='guess' && game.state.phase==='result' ? (y>config.height-65?-70:56) : (y<65?56:-33);
-  const labelX=x<120?20:x>config.width-120?-20:0;
-  const anchor=x<120?'start':x>config.width-120?'end':'middle';
-  const shape=type==='true-source'?'<path d="M0 -24 L7 -7 L24 0 L7 7 L0 24 L-7 7 L-24 0 L-7 -7 Z"/>':type==='guess'?'<path d="M0 -22 L22 0 L0 22 L-22 0 Z"/>':'<rect x="-17" y="-17" width="34" height="34" rx="8"/>';
-  return `<g class="${type} ${extra}" transform="translate(${x} ${y})">${shape}<text x="${labelX}" y="${labelY}" text-anchor="${anchor}">${escape(label)}</text></g>`;
+  const units=mapUnitsPerPixel(config), edge=Array.from(String(label)).length*8+10;
+  const labelY=type==='guess' && game.state.phase==='result' ? (y>config.height-34*units?-34:25) : (y<28*units?25:-18);
+  const labelX=x<edge*units?8:x>config.width-edge*units?-8:0;
+  const anchor=x<edge*units?'start':x>config.width-edge*units?'end':'middle';
+  const shape=type==='true-source'?'<path d="M0 -9 L3 -3 L9 0 L3 3 L0 9 L-3 3 L-9 0 L-3 -3 Z"/>':type==='guess'?'<path d="M0 -8 L8 0 L0 8 L-8 0 Z"/>':'<rect x="-6" y="-6" width="12" height="12" rx="3"/>';
+  return `<g class="${type} ${extra}" transform="translate(${x} ${y})"><g class="marker-glyph" transform="scale(${units})">${shape}<text x="${labelX}" y="${labelY}" text-anchor="${anchor}">${escape(label)}</text></g></g>`;
 }
 function mapHTML() {
   const s=game.state;
   const c=screen==='demo'?demo.config:s.config;
   const wall=screen==='demo'?(demo.wallVisible?wallForLevel(demo.level,c):null):wallForLevel(s.level,c);
+  const units=mapUnitsPerPixel(c);
   let layers='',pathLabels='';
   if(screen==='game' && s.phase==='result') {
     const src=s.source;
     if(s.level===2) {
       layers+=s.records.map(r=>`<path class="source-path ${r.attenuated?'blocked':''}" d="M${src.x} ${src.y} L${r.point.x} ${r.point.y}"/>`).join('');
-      pathLabels=s.records.map((r,i)=>r.attenuated?`<text class="path-label" x="${(src.x+r.point.x)/2}" y="${(src.y+r.point.y)/2-14}">${i+1} · 源 ×${c.wallTransmission}</text>`:'').join('');
+      pathLabels=s.records.map((r,i)=>r.attenuated?`<text class="path-label" text-anchor="middle" transform="translate(${Math.max(52*units,Math.min(c.width-52*units,(src.x+r.point.x)/2))} ${Math.max(20*units,(src.y+r.point.y)/2-12*units)}) scale(${units})">${i+1} · ×${c.wallTransmission}</text>`:'').join('');
     }
     layers+=`<path class="result-line" d="M${src.x} ${src.y} L${s.guess.x} ${s.guess.y}"/>`;
     if(s.result.status==='reasonable' && s.result.candidate) layers+=marker(s.result.candidate,'candidate','有效候选');
   }
-  if(wall) layers+=`<rect class="wall" x="${wall.x}" y="${wall.y}" width="${wall.width}" height="${wall.height}"/><text class="wall-label" x="${wall.x+wall.width+18}" y="${wall.y+40}">屏障</text>`;
+  if(wall) layers+=`<rect class="wall" x="${wall.x}" y="${wall.y}" width="${wall.width}" height="${wall.height}"/><text class="wall-label" transform="translate(${wall.x+wall.width+8*units} ${wall.y+18*units}) scale(${units})">屏障</text>`;
   layers+=pathLabels;
   if(screen==='demo') {
     layers+=marker(demo.source,'true-source','已知源')+marker(demo.point,'measurement','演示测点');
@@ -72,10 +79,17 @@ function mapHTML() {
   }
   return `${baseMap(c)}${layers}`;
 }
+function signalReference(config, currentLevel) {
+  const references=readingReferences(config);
+  const ticks=references.filter(r=>r.distance!==null && r.distance<=config.width).sort((a,b)=>a.distance-b.distance);
+  const outside=references.filter(r=>r.distance===null || r.distance>config.width);
+  return `<section class="signal-reference" aria-label="固定信号距离参考"><div class="reference-heading"><h2>无遮挡距离参考</h2><span class="reference-formula">强度 ∝ 1/r<sup>2</sup><small>远距离近似</small></span></div><div class="reference-ruler"><span class="reference-origin">距源 0</span>${ticks.map(r=>`<span class="reference-tick" data-reading="${r.value}" style="left:${r.distance/config.width*100}%"><span class="reference-tick-label"><strong>读数 ${r.value}</strong><small>${r.ratio.toFixed(2)}×短边</small></span></span>`).join('')}</div><p class="reference-outside">${outside.map(r=>r.distance===null?`读数 ${r.value}：当前参数下不可达`:`读数 ${r.value} → ${r.ratio.toFixed(2)}×短边（${r.exceedsMap?'超出地图范围':'超出尺长'}）`).join('；')}</p><p class="reference-note">尺长与地图同尺度；r 为到源距离。${currentLevel===2?`<br>穿墙后源信号 ×${config.wallTransmission}，背景不变。`:''}</p></section>`;
+}
 function field() {
   const c=screen==='demo'?demo.config:game.state.config;
+  const currentLevel=screen==='demo'?demo.level:game.state.level;
   const reveal=screen==='demo'||game.state.phase==='result';
-  return `<section class="map-panel"><div class="map-wrap" style="--map-ratio:${c.width/c.height}"><svg id="field" viewBox="0 0 ${c.width} ${c.height}" role="img" aria-label="${screen==='demo'?'已知源演示地图':'连续地图，点击选择位置；方向键可微调，Enter选定'}" tabindex="${screen==='demo'?'-1':'0'}">${mapHTML()}</svg></div>${reveal?'<div class="map-caption"><span class="legend">■ 测点　◇ 你的定位　✦ 信号源</span></div>':''}</section>`;
+  return `<section class="map-panel"><div class="map-surface" style="--map-ratio:${c.width/c.height}">${signalReference(c,currentLevel)}<div class="map-wrap"><svg id="field" viewBox="0 0 ${c.width} ${c.height}" role="img" aria-label="${screen==='demo'?'已知源演示地图':'连续地图，点击选择位置；方向键可微调，Enter选定'}" tabindex="${screen==='demo'?'-1':'0'}">${mapHTML()}</svg></div>${reveal?`<div class="map-caption"><span class="legend">■ 测点　◇ 你的定位　✦ 信号源</span>${currentLevel===2?`<span>穿墙路径标注：源信号 ×${c.wallTransmission}</span>`:''}</div>`:''}</div></section>`;
 }
 function displayValue(value, records, config) {
   let decimals=config.displayDecimals;
@@ -141,9 +155,18 @@ function demoView() {
   return `<main class="game-view"><div class="game-heading"><h1 class="game-title">${demo.level===1?'距离与读数':'屏障与读数'}</h1><span class="pill">演示 · <span id="demo-time">${Math.ceil(demo.config.demoMs/1000)}</span> 秒</span></div><div class="play-layout">${field()}<aside class="readout-column">${instrument()}<section class="demo-panel"><div class="progress-track"><div class="progress-fill" id="demo-progress"></div></div><div class="button-row">${button('start','开始挑战','primary')}${button('replay-demo','重看','quiet')}${button('demo-back','返回','quiet')}</div></section>${helpPanel(demo.level,demo.config)}</aside></div></main>`;
 }
 function render() {
+  mapObserver?.disconnect();
   root.innerHTML=header()+(screen==='home'?home():screen==='demo'?demoView():gameView())+footer();
   lastPhase=game.state.phase;
   bindMap();
+  const map=$('#field');
+  if(map) {
+    // SVG positions stay in game units; glyphs and text keep a readable CSS-pixel size.
+    const redraw=()=>{if(map.isConnected)map.innerHTML=mapHTML();};
+    redraw();
+    mapObserver=new ResizeObserver(redraw);
+    mapObserver.observe(map);
+  }
 }
 function start() {
   demo=null;screen='game';selectedRecord=-1;notice='';game.start(level,{rng:random});render();window.scrollTo(0,0);

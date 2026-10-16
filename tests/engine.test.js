@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DEFAULT_CONFIG, makeConfig } from '../src/config.js';
-import { classify, crossesWall, distance, generateSource, meter, seededRandom, signal, solveCandidates, validPoint, wallForLevel } from '../src/engine.js';
+import { classify, crossesWall, distance, distanceForReading, generateSource, meter, readingReferences, seededRandom, signal, solveCandidates, validPoint, wallForLevel } from '../src/engine.js';
 
 const config = makeConfig();
 const close = (actual, expected, tolerance = 1e-8) => assert.ok(Math.abs(actual - expected) <= tolerance, `${actual} differs from ${expected}`);
@@ -15,7 +15,7 @@ test('configuration creates independent immutable snapshots with the specified d
   input.wall.x = 10;
   assert.equal(first.wall.x, 750);
   assert.equal(second.wall.x, 780);
-  assert.equal(DEFAULT_CONFIG.version, '0.2.0');
+  assert.equal(DEFAULT_CONFIG.version, '0.3.0');
   assert.equal(DEFAULT_CONFIG.measurements, 4);
   assert.equal(DEFAULT_CONFIG.measurementMs, 1000);
   assert.notEqual(first.wall, second.wall);
@@ -96,6 +96,49 @@ test('zero distance is finite, exact values are retained, and meter is fixed acr
   close(meter(reading, config), expected);
   signal(source, { x: 10, y: 10 }, 1, config);
   assert.equal(meter(reading, config), expected);
+});
+
+test('total readings invert to the original logical distance for open and attenuated paths', () => {
+  for (const current of [config, makeConfig({ width: 2000, height: 1200, K: 240, b: 12, h: 0.07, wallTransmission: 0.3 })]) {
+    const source = { x: 500, y: 500 };
+    for (const point of [source, { x: 1100, y: 500 }, { x: 300, y: 700 }, { x: 0, y: 0 }]) {
+      for (const level of [1, 2]) {
+        const reading = signal(source, point, level, current);
+        close(distanceForReading(reading.value, current, reading.attenuated), distance(source, point));
+      }
+    }
+  }
+});
+
+test('reading inversion rejects impossible values and retains zero and distances beyond the map', () => {
+  for (const attenuated of [false, true]) {
+    const strength = (attenuated ? config.wallTransmission : 1) * config.K;
+    const peak = config.b + strength / config.h ** 2;
+    assert.equal(distanceForReading(peak, config, attenuated), 0);
+    for (const value of [NaN, Infinity, -Infinity, -1, config.b, config.b - 0.1, peak + 0.001]) {
+      assert.equal(distanceForReading(value, config, attenuated), null);
+    }
+    assert.ok(distanceForReading(config.b + 0.001, config, attenuated) > Math.hypot(config.width, config.height));
+  }
+});
+
+test('static distance references expose the out-of-map reading without clipping or changing the model', () => {
+  const references = readingReferences(config);
+  assert.deepEqual(references.map(reference => reference.value), [10, 100, 1000]);
+  assert.deepEqual(references.map(reference => reference.exceedsMap), [true, false, false]);
+  const expectedRatios = [Math.sqrt(19.99), Math.sqrt(100 / 95 - 0.01), Math.sqrt(100 / 995 - 0.01)];
+  references.forEach((reference, index) => {
+    close(reference.ratio, expectedRatios[index]);
+    close(reference.distance, expectedRatios[index] * 1000);
+    // A reference must reproduce the total display reading, including background.
+    close(config.b + config.K / (reference.ratio ** 2 + config.h ** 2), reference.value);
+  });
+  const highBackground = makeConfig({ b: 100 });
+  assert.deepEqual(readingReferences(highBackground).slice(0, 2), [
+    { value: 10, distance: null, ratio: null, exceedsMap: false },
+    { value: 100, distance: null, ratio: null, exceedsMap: false },
+  ]);
+  assert.equal(readingReferences(config, [config.b + config.K / config.h ** 2])[0].distance, 0);
 });
 
 test('seeded continuous generation is reproducible, independent, margin-safe, and cannot hang on a constant RNG', () => {
