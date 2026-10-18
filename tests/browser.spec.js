@@ -13,6 +13,7 @@ const pageErrors = new WeakMap();
 const action = (page, name) => page.locator(`[data-action="${name}"]`);
 const recordButtons = page => page.locator('button[data-record]');
 const resultMetric = (page, name) => page.locator(`[data-metric="${name}"]`);
+const themeButton = (page, name) => page.locator(`.site-header button[data-theme="${name}"]`);
 
 async function expectNoResultMetrics(page) {
   await expect(page.locator('[data-metric="source-error"], [data-metric="candidate-error"]')).toHaveCount(0);
@@ -48,24 +49,28 @@ async function expectNoHorizontalOverflow(page, width) {
 }
 
 async function expectReadableMapText(page) {
-  const readLabels = () => page.locator('#field text').evaluateAll(elements => elements.map(element => {
+  // Query and measure together: map redraws replace SVG children, so elements
+  // resolved by a separate browser call can be detached before style sampling.
+  const readLabels = () => page.evaluate(() => [...document.querySelectorAll('#field text')].map(element => {
     const matrix = element.getScreenCTM();
     return {
       text: element.textContent,
       // SVG font-size is expressed in map units. Include its complete screen
       // transform to catch labels that shrink when the map fits a phone.
-      pixels: parseFloat(getComputedStyle(element).fontSize) * Math.hypot(matrix.c, matrix.d),
+      pixels: matrix ? parseFloat(getComputedStyle(element).fontSize) * Math.hypot(matrix.c, matrix.d) : NaN,
     };
   }));
   // Playwright's clock advances game timers, but native ResizeObserver delivery
   // still follows real layout frames. Wait for that frame after rotating.
+  let labels = [];
   await expect.poll(async () => {
-    const labels = await readLabels();
-    return labels.length > 0 && labels.every(label => label.pixels >= 15 && label.pixels <= 17);
+    labels = await readLabels();
+    return labels.length > 0 && labels.every(label => Number.isFinite(label.pixels) && label.pixels >= 15 && label.pixels <= 17);
   }, { message: 'Map labels must settle at a readable, constant screen size' }).toBe(true);
-  const labels = await readLabels();
+  // Assert the same successful sample, rather than making a new unpolled read.
   expect(labels.length).toBeGreaterThan(0);
   for (const label of labels) {
+    expect(Number.isFinite(label.pixels), `Map label “${label.text}” must have a measurable screen size`).toBe(true);
     expect(label.pixels, `Map label “${label.text}” must remain legible in CSS pixels`).toBeGreaterThanOrEqual(15);
     expect(label.pixels, `Map label “${label.text}” must not grow with the map`).toBeLessThanOrEqual(17);
   }
@@ -164,6 +169,111 @@ async function publicSnapshot(page) {
     pending: await page.locator('#field .pending').getAttribute('transform').catch(() => null),
   };
 }
+
+test('theme follows the system until a manual choice, persists on reload and stays isolated between browsers', async ({ page, context, browser }) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await openGame(page, 'browser-theme-preference');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(themeButton(page, 'dark')).toHaveAttribute('aria-pressed', 'true');
+  await expect(themeButton(page, 'light')).toHaveAttribute('aria-pressed', 'false');
+  await page.emulateMedia({ colorScheme: 'light' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await themeButton(page, 'light').click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await expect(themeButton(page, 'light')).toHaveAttribute('aria-pressed', 'true');
+  await expect(themeButton(page, 'dark')).toHaveAttribute('aria-pressed', 'false');
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.reload();
+  await expect(action(page, 'start')).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  expect(await page.evaluate(() => localStorage.getItem('b03-theme'))).toBe('light');
+
+  const isolated = await browser.newContext({ colorScheme: 'dark' });
+  try {
+    const other = await isolated.newPage();
+    other.on('pageerror', error => pageErrors.get(context).push(error.message));
+    await other.goto(page.url());
+    await expect(action(other, 'start')).toBeVisible();
+    await expect(other.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(themeButton(other, 'dark')).toHaveAttribute('aria-pressed', 'true');
+  } finally {
+    await isolated.close();
+  }
+});
+
+test('theme changes preserve an in-flight measurement, map, focus and last-reading context', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await openGame(page, 'browser-theme-measurement');
+  await startGame(page, { level: 2 });
+  await finishMeasurement(page, points[0], 0);
+  const firstReading = await page.locator('#reading').innerText();
+  await choosePoint(page, points[1]);
+  await expect(page.locator('.instrument-context')).toContainText('上次读数');
+  await expect(page.locator('.instrument-context')).toContainText(/测点\s*0?1/);
+  await expect(page.locator('#reading')).toHaveText(firstReading, { useInnerText: true });
+  await action(page, 'measure').click();
+  await page.clock.runFor(400);
+  const before = await publicSnapshot(page);
+  const clock = await page.locator('#clock').innerText();
+  const field = await page.locator('#field').elementHandle();
+  for (const theme of ['dark', 'light']) {
+    // Keyboard activation also verifies that switching palettes does not
+    // replace the focused control or the map during an active measurement.
+    await themeButton(page, theme).focus();
+    await themeButton(page, theme).press('Enter');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+    await expect(themeButton(page, theme)).toBeFocused();
+    expect(await field.evaluate(element => element.isConnected && element === document.querySelector('#field'))).toBe(true);
+    expect(await publicSnapshot(page)).toEqual(before);
+    await expect(page.locator('#clock')).toHaveText(clock);
+    await expect(page.locator('#field .true-source, #field .candidate, #field .source-path')).toHaveCount(0);
+    await expectNoResultMetrics(page);
+  }
+  await page.clock.runFor(599);
+  await expect(recordButtons(page)).toHaveCount(1);
+  await expect(action(page, 'measure')).toBeDisabled();
+  await page.clock.runFor(18);
+  await expect(recordButtons(page)).toHaveCount(2);
+  await expect(page.locator('.instrument-context')).toContainText(/测点\s*0?2/);
+  await expect(page.locator('.instrument-context')).not.toContainText('上次读数');
+  const secondReading = await page.locator('#reading').innerText();
+  expect(secondReading).not.toBe(firstReading);
+  await choosePoint(page, points[2]);
+  await expect(page.locator('.instrument-context')).toContainText('上次读数');
+  await expect(page.locator('.instrument-context')).toContainText(/测点\s*0?2/);
+  await expect(page.locator('#reading')).toHaveText(secondReading, { useInnerText: true });
+});
+
+test('theme controls and gameplay survive unavailable localStorage reads or writes', async ({ context }) => {
+  for (const failure of ['read', 'write']) {
+    const page = await context.newPage();
+    try {
+      await page.emulateMedia({ colorScheme: 'dark' });
+      await page.addInitScript(mode => {
+        const blocked = () => { throw new DOMException('Storage unavailable', 'SecurityError'); };
+        if (mode === 'read') Object.defineProperty(window, 'localStorage', { get: blocked, configurable: true });
+        else Storage.prototype.setItem = blocked;
+      }, failure);
+      await openGame(page, `browser-theme-storage-${failure}`);
+      await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+      await themeButton(page, 'light').click();
+      await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+      await page.emulateMedia({ colorScheme: 'light' });
+      await page.emulateMedia({ colorScheme: 'dark' });
+      await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+      await startGame(page, { level: 2 });
+      await finishMeasurement(page, points[0], 0);
+      await expect(page.locator('#field .true-source')).toHaveCount(0);
+      await expect(page.locator('.game-meta .pill')).toHaveText('已用 1 / 3 次');
+    } finally {
+      await page.close();
+    }
+  }
+});
 
 for (const level of [1, 2]) {
   test(`level ${level} starts directly with four one-second measurements and reveals no result metrics early`, async ({ page }) => {
@@ -401,6 +511,33 @@ test('collinear measurements recognize a distinct mirrored source without previe
 
 test.describe('mobile-sized Chrome emulation (not a substitute for physical phone testing)', () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
+
+  test('dark theme stays readable without horizontal overflow on a 320px phone through results and demo', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 740 });
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await openGame(page, 'browser-dark-narrow-phone');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(themeButton(page, 'dark')).toBeVisible();
+    await expectNoHorizontalOverflow(page, 320);
+    await startGame(page, { level: 2 });
+    await finishMeasurement(page, points[0], 0);
+    await choosePoint(page, points[1]);
+    await expect(page.locator('.instrument-context')).toContainText('上次读数');
+    await expectReadableMapText(page);
+    await expectNoHorizontalOverflow(page, 320);
+    await finishMeasurement(page, points[1], 1);
+    await finishMeasurement(page, points[2], 2);
+    await choosePoint(page, { x: 300, y: 400 });
+    await action(page, 'submit').click();
+    await expect(page.locator('.result-panel')).toBeVisible();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expectReadableMapText(page);
+    await expectNoHorizontalOverflow(page, 320);
+    await action(page, 'demo').click();
+    await expect(page.locator('.demo-panel')).toBeVisible();
+    await expectReadableMapText(page);
+    await expectNoHorizontalOverflow(page, 320);
+  });
 
   test('map labels stay readable on narrow phones and rotation preserves points and reference layout', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 740 });

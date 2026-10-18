@@ -1,5 +1,6 @@
 import { DEFAULT_CONFIG } from './config.js';
 import { GameSession } from './session.js';
+import { currentTheme, selectTheme, syncThemeControls } from './theme.js';
 import { distance, signal, meter, seededRandom, wallForLevel, readingReferences } from './engine.js';
 
 const $ = (selector) => document.querySelector(selector);
@@ -13,6 +14,7 @@ let demo = null;
 let selectedRecord = -1;
 let notice = '';
 let lastPhase = '';
+let lastRecordCount = 0;
 let lastClock = '';
 let mapObserver = null;
 const titles = { 1: '基础定位', 2: '隔墙寻源' };
@@ -21,7 +23,7 @@ const time = ms => `${Math.floor(ms / 60000).toString().padStart(2, '0')}:${Math
 const button = (action, text, kind = 'secondary', disabled = false) => `<button class="button ${kind}" data-action="${action}" ${disabled ? 'disabled' : ''}>${text}</button>`;
 
 function header() {
-  return `<header class="site-header"><button class="brand" data-action="home" aria-label="信号寻踪，返回开始页"><span class="brand-mark">↗</span><span class="brand-copy">信号寻踪</span></button><span class="version">B03 · v${DEFAULT_CONFIG.version}</span></header>`;
+  return `<header class="site-header"><button class="brand" data-action="home" aria-label="信号寻踪，返回开始页"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M12 4H4v12M20 28h8V16M11 21l10-10M16 11h5v5"/></svg></span><span class="brand-copy">信号寻踪</span></button><div class="header-tools"><div class="theme-switch" role="group" aria-label="外观模式">${['light','dark'].map(theme=>`<button type="button" data-theme="${theme}" aria-label="${theme==='light'?'亮色模式':'暗色模式'}" aria-pressed="${currentTheme()===theme}">${theme==='light'?'亮':'暗'}</button>`).join('')}</div><span class="version">v${DEFAULT_CONFIG.version}</span></div></header>`;
 }
 function footer() {
   return screen==='home'?'<footer class="site-footer">核能文化节</footer>':'';
@@ -31,7 +33,7 @@ function helpPanel(n, c) {
 }
 function home() {
   const c = game.nextConfig;
-  return `<main class="home-grid"><section class="hero-copy"><h1 class="hero-title">寻找<span>隐藏的源</span></h1><p class="lede">比较不同位置的信号，标出你认为的源位置。</p><div class="level-list" role="group" aria-label="选择关卡">${[1,2].map(n=>`<button class="level-option" data-level="${n}" aria-pressed="${level===n}"><span class="level-no">0${n}</span><span class="level-body"><strong>${titles[n]}</strong><span>${n===1?'无屏障':'一道屏障'}</span></span></button>`).join('')}</div><p class="round-summary"><span>${c.measurements} 次测量</span><span>每次 ${c.measurementMs/1000} 秒</span></p><div class="home-actions">${button('start','开始寻踪','primary')}${button('demo','演示')}</div><div class="home-details"><details class="settings"><summary>设置</summary><label>每关测量次数 <select id="measurements" aria-label="每关测量次数">${[3,4,5].map(n=>`<option value="${n}" ${c.measurements===n?'selected':''}>${n} 次${n===DEFAULT_CONFIG.measurements?'（默认）':''}</option>`).join('')}</select></label><label>每次测量等待 <select id="measurement-ms" aria-label="每次测量等待">${[1000,3000].map(n=>`<option value="${n}" ${c.measurementMs===n?'selected':''}>${n/1000} 秒${n===DEFAULT_CONFIG.measurementMs?'（默认）':''}</option>`).join('')}</select></label></details>${helpPanel(level,c)}</div></section><aside class="home-visual" aria-hidden="true"><svg viewBox="0 0 580 600"><path d="M40 410 Q150 460 210 330 T440 220 T550 90" fill="none" stroke="#d9dfd2" stroke-width="100"/><path d="M20 510 Q130 550 230 430 T530 350 M60 80 Q200 20 270 160 T550 200" class="poster-line"/><path d="M90 120 L425 180 L180 335 L380 470" fill="none" stroke="#9aab9d" stroke-dasharray="4 12" stroke-width="2"/>${[{x:90,y:120,n:'01',w:40},{x:425,y:180,n:'02',w:80},{x:180,y:335,n:'03',w:130},{x:380,y:470,n:'04',w:105}].map(p=>`<g transform="translate(${p.x} ${p.y})"><rect x="-8" y="-8" width="16" height="16" rx="3" fill="#b54e24"/><text x="18" y="5" class="poster-label">${p.n}</text><rect x="-30" y="30" width="150" height="5" fill="#dee1d7"/><rect x="-30" y="30" width="${p.w}" height="5" fill="#567261"/></g>`).join('')}</svg></aside></main>`;
+  return `<main class="home-grid"><section class="hero-copy"><h1 class="hero-title">寻找<span>隐藏的源</span></h1><p class="lede">比较不同位置的信号，标出你认为的源位置。</p><div class="level-list" role="group" aria-label="选择关卡">${[1,2].map(n=>`<button class="level-option" data-level="${n}" aria-pressed="${level===n}"><span class="level-no">0${n}</span><span class="level-body"><strong>${titles[n]}</strong><span>${n===1?'无屏障':'一道屏障'}</span></span></button>`).join('')}</div><p class="round-summary"><span>${c.measurements} 次测量</span><span>每次 ${c.measurementMs/1000} 秒</span></p><div class="home-actions">${button('start','开始寻踪','primary')}${button('demo','演示')}</div><div class="home-details"><details class="settings"><summary>设置</summary><label>每关测量次数 <select id="measurements" aria-label="每关测量次数">${[3,4,5].map(n=>`<option value="${n}" ${c.measurements===n?'selected':''}>${n} 次${n===DEFAULT_CONFIG.measurements?'（默认）':''}</option>`).join('')}</select></label><label>每次测量等待 <select id="measurement-ms" aria-label="每次测量等待">${[1000,3000].map(n=>`<option value="${n}" ${c.measurementMs===n?'selected':''}>${n/1000} 秒${n===DEFAULT_CONFIG.measurementMs?'（默认）':''}</option>`).join('')}</select></label></details>${helpPanel(level,c)}</div></section><aside class="home-visual" aria-hidden="true"><svg viewBox="0 0 580 600"><path d="M40 410 Q150 460 210 330 T440 220 T550 90" fill="none" class="poster-river" stroke-width="100"/><path d="M20 510 Q130 550 230 430 T530 350 M60 80 Q200 20 270 160 T550 200" class="poster-line"/><path d="M90 120 L425 180 L180 335 L380 470" fill="none" class="poster-link" stroke-dasharray="4 12" stroke-width="2"/>${[{x:90,y:120,n:'01',w:40},{x:425,y:180,n:'02',w:80},{x:180,y:335,n:'03',w:130},{x:380,y:470,n:'04',w:105}].map(p=>`<g transform="translate(${p.x} ${p.y})"><rect x="-8" y="-8" width="16" height="16" class="poster-point"/><text x="18" y="5" class="poster-label">${p.n}</text><rect x="-30" y="30" width="150" height="5" class="poster-track"/><rect x="-30" y="30" width="${p.w}" height="5" class="poster-fill"/></g>`).join('')}</svg></aside></main>`;
 }
 
 function baseMap(config) {
@@ -49,7 +51,7 @@ function marker(point, type, label, extra = '') {
   const labelY=type==='guess' && game.state.phase==='result' ? (y>config.height-34*units?-34:25) : (y<28*units?25:-18);
   const labelX=x<edge*units?8:x>config.width-edge*units?-8:0;
   const anchor=x<edge*units?'start':x>config.width-edge*units?'end':'middle';
-  const shape=type==='true-source'?'<path d="M0 -9 L3 -3 L9 0 L3 3 L0 9 L-3 3 L-9 0 L-3 -3 Z"/>':type==='guess'?'<path d="M0 -8 L8 0 L0 8 L-8 0 Z"/>':'<rect x="-6" y="-6" width="12" height="12" rx="3"/>';
+  const shape=type==='true-source'?'<path d="M0 -9 L3 -3 L9 0 L3 3 L0 9 L-3 3 L-9 0 L-3 -3 Z"/>':type==='guess'?'<path d="M0 -8 L8 0 L0 8 L-8 0 Z"/>':'<rect x="-6" y="-6" width="12" height="12"/>';
   return `<g class="${type} ${extra}" transform="translate(${x} ${y})"><g class="marker-glyph" transform="scale(${units})">${shape}<text x="${labelX}" y="${labelY}" text-anchor="${anchor}">${escape(label)}</text></g></g>`;
 }
 function mapHTML() {
@@ -73,7 +75,7 @@ function mapHTML() {
     layers+=marker(demo.source,'true-source','已知源')+marker(demo.point,'measurement','演示测点');
   } else {
     layers+=s.records.map((r,i)=>marker(r.point,'measurement',String(i+1),selectedRecord===i?'selected':'')).join('');
-    if(s.pending) layers+=marker(s.pending,'pending',s.phase==='measuring'?'测量中':'待测');
+    if(s.pending) layers+=marker(s.pending,'pending',s.phase==='measuring'?'测量中':'待测',s.phase==='measuring'?'is-measuring':'');
     if(s.guess) layers+=marker(s.guess,'guess','你的定位');
     if(s.phase==='result') layers+=marker(s.source,'true-source','真实源');
   }
@@ -114,7 +116,8 @@ function instrument() {
     comparison=Math.abs(difference)<1e-9?`与测点 ${records.length-1} 相同`:`比测点 ${records.length-1} ${difference>0?'增强':'减弱'} ${formatDifference(Math.abs(difference),c)}`;
     if(Math.abs(difference)>1e-9 && Math.abs(difference)<.1) comparison+= '（差异很小）';
   }
-  return `<section class="instrument" aria-label="信号仪表"><div class="instrument-top"><span>信号读数</span><span class="badge">固定量程</span></div><div class="reading" id="reading">${last===undefined?'—':displayValue(last,records,c)}</div><div class="meter-track"><div id="meter-fill" class="meter-fill" style="width:${last===undefined?0:meter(last,c)*100}%"></div></div><div class="meter-scale"><span>弱</span><span>强</span></div><p class="comparison" id="comparison" aria-live="polite">${escape(comparison)}</p></section>`;
+  const context=isDemo?'已知源演示':last===undefined?(s.phase==='measuring'?'完成后显示读数':'确认测量后显示读数'):s.pending?`上次读数 · 测点 ${records.length}`:`测点 ${records.length} 的读数`;
+  return `<section class="instrument" aria-label="信号仪表"><div class="instrument-top"><span>信号读数</span><span class="badge">固定量程</span></div><p class="instrument-context">${context}</p><div class="reading" id="reading">${last===undefined?'—':displayValue(last,records,c)}</div><div class="meter-track"><div id="meter-fill" class="meter-fill" style="width:${last===undefined?0:meter(last,c)*100}%"></div></div><div class="meter-scale"><span>弱</span><span>强</span></div><p class="comparison" id="comparison" aria-live="polite">${escape(comparison)}</p></section>`;
 }
 function recordsPanel() {
   const s=game.state,c=s.config,records=s.records;
@@ -155,9 +158,18 @@ function demoView() {
   return `<main class="game-view"><div class="game-heading"><h1 class="game-title">${demo.level===1?'距离与读数':'屏障与读数'}</h1><span class="pill">演示 · <span id="demo-time">${Math.ceil(demo.config.demoMs/1000)}</span> 秒</span></div><div class="play-layout">${field()}<aside class="readout-column">${instrument()}<section class="demo-panel"><div class="progress-track"><div class="progress-fill" id="demo-progress"></div></div><div class="button-row">${button('start','开始挑战','primary')}${button('replay-demo','重看','quiet')}${button('demo-back','返回','quiet')}</div></section>${helpPanel(demo.level,demo.config)}</aside></div></main>`;
 }
 function render() {
+  const completedMeasurement=screen==='game' && lastPhase==='measuring' && game.state.records.length>lastRecordCount;
+  const revealedResult=screen==='game' && lastPhase!=='result' && game.state.phase==='result';
   mapObserver?.disconnect();
   root.innerHTML=header()+(screen==='home'?home():screen==='demo'?demoView():gameView())+footer();
   lastPhase=game.state.phase;
+  lastRecordCount=game.state.records.length;
+  syncThemeControls();
+  if(completedMeasurement) {
+    $('.instrument')?.classList.add('is-reading-new');
+    [...document.querySelectorAll('.records button[data-record]')].at(-1)?.classList.add('is-reading-new');
+  }
+  if(revealedResult) $('.result-panel')?.classList.add('is-revealing');
   bindMap();
   const map=$('#field');
   if(map) {
@@ -201,6 +213,7 @@ function updateDemo(now) {
 }
 root.addEventListener('click', event=>{
   const target=event.target.closest('button');if(!target||target.disabled)return;
+  if(target.dataset.theme){selectTheme(target.dataset.theme);return;}
   if(target.dataset.level){level=Number(target.dataset.level);render();return;}
   if(target.dataset.record!==undefined){selectedRecord=Number(target.dataset.record);render();return;}
   const action=target.dataset.action;

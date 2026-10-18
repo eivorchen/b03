@@ -2,11 +2,13 @@
 
 面向核能文化节的双关卡定位游戏。玩家在连续地图上选择测点，确认测量、比较读数，用完机会后提交信号源位置。第一关只考虑距离，第二关加入一道屏障；有效的镜像多解也可以得到认可。
 
-本版依据 [PRD v0.4](./prd.md) 实现，版本为 **0.3.0**。根据手机试玩反馈放大主体文字和地图标记，并新增无遮挡总读数 10 / 100 / 1000 的固定距离参考尺。默认四次测量、每次等待一秒，揭晓后显示定位偏差百分比。使用原生 HTML、CSS 和 JavaScript，无运行时依赖、账户或后端服务。应用不接入第三方统计 SDK。
+本地版本为 **0.4.0**，当前开发分支为 `feat/titanium-mecha-ui`。本轮采用 **B「钛灰工程」**：亮暗主题、直角与少量切角、可读地图标记、本地数字字体，以及选新测点时的“上次读数”提示。玩法依据 [PRD v0.4](./prd.md)，美术与交互规范见 [design.md](./design.md)。默认四次测量、每次一秒，信号模型与公平判定保持不变。
 
-**0.3.0 已于 2026-10-16 发布到 GitHub Pages**：[打开「信号寻踪」](https://eivorchen.github.io/b03/)。公开源码仓库为 [eivorchen/b03](https://github.com/eivorchen/b03)，已启用强制 HTTPS；向 `main` 推送代码会自动测试、构建并发布 `dist/`。本轮[发布成功](https://github.com/eivorchen/b03/actions/runs/38879011242)，线上已核对版本、距离尺及公式显示。
+**本轮仅本地提交，不推送、不发布。** [GitHub Pages 游戏入口](https://eivorchen.github.io/b03/) 保持已发布的 0.3.0；本地测试使用 [http://127.0.0.1:4173/b03/](http://127.0.0.1:4173/b03/)。公开仓库为 [eivorchen/b03](https://github.com/eivorchen/b03)。后续发布需用户另行安排。
 
-本次 `npm run check` 的 **41 项 Node 测试和 26 项浏览器测试全部通过**，构建标记为 `83fd2d435aa1`。正式网址二维码已生成，用户已用手机扫码游玩 0.2.0 并反馈字体过小；新版真机复测、现场多设备与印刷二维码检查仍待完成。最新进度见 [开发交接](./DEVELOPMENT_STATUS.md)，验证证据见 [验收记录](./docs/acceptance.md)。
+主题首次跟随系统，手动选择后在本机保存；切换时保留测点、读数、测量计时和结果。应用使用原生 HTML、CSS、JavaScript，无账户、后端或运行时库，字体随静态资源提供。最新验证结果见 [开发交接](./DEVELOPMENT_STATUS.md) 与 [验收记录](./docs/acceptance.md)。
+
+0.4.0 已通过完整 `npm run check`：**41 项 Node 测试、30 项浏览器测试**，构建标记 `09fd7e6efd0f`；[验证日志](./docs/validation-0.4.0.log)。截图覆盖两主题、桌面和手机尺寸模拟，新版真机体验仍待试玩。
 
 ## 本地运行
 
@@ -49,7 +51,7 @@ npm run preview
 
 `npm run check` 按顺序执行 Node 测试、构建和静态交付的浏览器测试。`test:browser` 默认自动启动开发服务器；若 `4173` 已有服务器，会复用该服务。`test:release` 使用 `4174` 临时启动 `dist/` 预览，结束后关闭。浏览器自动化验证不能代替 iOS / Android 真机、微信内置浏览器、校园网和移动网络验收；命令是否通过及其实际环境，以验收记录为准。
 
-构建生成 `dist/`，包含首页、样式、模块、`.nojekyll` 与 `release.json`。**`dist/` 是可静态发布的交付目录**，通过源码和锁文件可重新生成，不提交到 Git。资源采用相对路径，本地 `/b03/` 路径用于检查与 Pages 项目子路径相同的加载方式。
+构建生成 `dist/`，包含首页、样式、模块、本地字体及许可、`.nojekyll` 与 `release.json`。**`dist/` 是可静态发布的交付目录**，通过源码和锁文件可重新生成，不提交到 Git。资源采用相对路径，本地 `/b03/` 路径用于检查与 Pages 项目子路径相同的加载方式。
 
 构建为首页引用和各级模块引用附加同一个内容哈希版本标记，减少更新后混用不同构建资源的风险；页面显示游戏版本号，`dist/release.json` 记录构建标记。拿到新首页才会使用新标记，旧首页缓存仍需在发布验收时检查。
 
@@ -57,7 +59,7 @@ npm run preview
 
 稳定入口为 **https://eivorchen.github.io/b03/**，发布来源为 GitHub Actions。工作流 [.github/workflows/pages.yml](./.github/workflows/pages.yml) 在 `main` 收到推送时运行，也可在 GitHub 的 Actions 页面手动触发。它使用 Node.js 24，依次安装锁定依赖、执行 `npm test`、运行 `npm run build`，再上传并发布 `dist/`；测试或构建失败时不会进入部署。
 
-首次部署已[成功完成](https://github.com/eivorchen/b03/actions/runs/38858692029)。后续修改应先在本机运行 `npm run check`，提交并推送 `main`，然后检查 [Actions 发布结果](https://github.com/eivorchen/b03/actions/workflows/pages.yml) 和线上页面。云端工作流运行 Node 测试，本机 Chrome 的完整浏览器回归仍需在发布前执行。无需将 `dist/` 提交到仓库。
+首次部署已[成功完成](https://github.com/eivorchen/b03/actions/runs/38858692029)。用户另行安排发布后，应先在本机运行 `npm run check`，提交并推送 `main`，然后检查 [Actions 发布结果](https://github.com/eivorchen/b03/actions/workflows/pages.yml) 和线上页面。云端工作流运行 Node 测试，本机 Chrome 的完整浏览器回归仍需在发布前执行。无需将 `dist/` 提交到仓库。
 
 ## 游玩与调试
 
@@ -86,7 +88,10 @@ http://127.0.0.1:4173/b03/?seed=b03-debug
 | 路径 | 用途 |
 | --- | --- |
 | `index.html` | 入口、资源加载与失败重试 |
-| `styles.css` | 手机横竖屏、桌面布局与视觉样式 |
+| `styles.css` | 钛灰工程亮暗主题、桌面与手机布局 |
+| `design.md` | 美术、字体、几何形状及交互指导 |
+| `src/theme.js` | 系统主题、本地选择与界面同步 |
+| `assets/fonts/` | 本地数字字体及许可证 |
 | `src/app.js` | 页面文案、地图交互、演示、读数与复盘呈现 |
 | `src/config.js` | 集中参数与校验、不可变单局配置 |
 | `src/engine.js` | 信号、屏障、源生成、候选求解与等级判定 |

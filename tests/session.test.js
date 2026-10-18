@@ -83,7 +83,7 @@ for (const level of [1, 2]) {
       assert.ok(!JSON.stringify(game.state).includes('"errorPercent"'));
       assert.ok(!JSON.stringify(game.state).includes('"nearestPercent"'));
     };
-    assert.equal(game.nextConfig.version, '0.3.0');
+    assert.equal(game.nextConfig.version, '0.4.0');
     assert.equal(game.nextConfig.measurements, 4);
     assert.equal(game.nextConfig.measurementMs, 1000);
     assertUnrevealed();

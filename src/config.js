@@ -1,5 +1,5 @@
 const defaults = {
-  version: '0.3.0',
+  version: '0.4.0',
   width: 1600,
   height: 1000,
   measurements: 4,
