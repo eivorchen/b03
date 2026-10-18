@@ -10,7 +10,9 @@
 
 [0.4.1 截图目录](./screenshots/0.4.1/) 保存两主题首页、手机、横屏与结果；已目视核对首页显示 3 次、v0.4.1 和三个示意测点。截图脚本按当前默认次数完成测量，仍为本机 Chrome 模拟，未代替新版真机扫码验收。
 
-发布状态：本地验收已通过，待本轮推送后的 Actions 和线上页面验证。
+发布状态：**已合并到 `main` 并推送，GitHub Pages 部署成功。** 功能提交 `fc26a72`；[成功工作流](https://github.com/eivorchen/b03/actions/runs/39091868969)。正式入口仍为 [eivorchen.github.io/b03](https://eivorchen.github.io/b03/)。
+
+线上 `release.json` 与九个交付文件均返回 HTTP 200，逐字节匹配本地构建（含本地字体和许可），见 [资源核对](./deployment-assets-0.4.1.json)。内置浏览器刷新显示 v0.4.1、3 次测量、每次 1 秒；核对亮暗切换与刷新保持，完成第二关三次测量、确认定位及结果揭晓，切至第一关恢复 0 / 3 次，刷新返回可用首页。见 [线上首页](./screenshots/0.4.1/live-home.png)、[线上结果](./screenshots/0.4.1/live-result.png)。这些是本机线上检查，不等于新版真机扫码验收。
 
 ## 历史：0.4.0 本地验证
 

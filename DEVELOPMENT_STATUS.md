@@ -6,7 +6,7 @@
 - 项目目录：`/Users/eivorchen/Documents/大三/联络部/b03`
 - 第二版功能提交：`c79ff34846ddd80a6b3aeb942e28d9f709990690`
 - 首次发布提交：`fe7d5d5aa2aac78b69fe44061941f836800bf098`（增加 Pages 工作流）
-- 线上 0.3.0 构建标记：`83fd2d435aa1`；0.2.0 历史发布构建：`c64cd316e5a7`
+- 线上 0.4.1 构建标记：`26dc162b1a9e`；0.3.0 历史构建：`83fd2d435aa1`；0.2.0 历史构建：`c64cd316e5a7`
 - 公开仓库：[eivorchen/b03](https://github.com/eivorchen/b03)
 - 稳定游戏入口：[https://eivorchen.github.io/b03/](https://eivorchen.github.io/b03/)
 
@@ -14,16 +14,19 @@
 
 0.4.0 已实现 B「钛灰工程」亮暗外观、直角/切角控件、主题选择保存、本地 Rajdhani 数字字体与“上次读数”提示。主题切换不重新渲染游戏，不重置测量计时。美术交付为根目录 `design.md`；本地预览为 `http://127.0.0.1:4173/b03/`，仅本机可访问。
 
-0.3.0 已按手机试玩反馈放大字体并新增固定距离参考尺，完成本地自动化回归并已发布到原网址。线上已核对 `v0.3.0`、参考尺、公式及第二关屏障说明。历史 0.2.0 曾通过线上流程检查，用户已实际扫码游玩并反馈地图字太小；该反馈不等于新版真机验收。正式网址二维码已生成于 `docs/qr/`，当前尚未提交；现场网络、多设备和印刷检查未完成。下文历史记录保留此前证据，不代表本次重新执行了每项人工检查。
+历史 0.3.0 已按手机试玩反馈放大字体并新增固定距离参考尺，完成本地自动化回归并曾发布到原网址。当时线上已核对 `v0.3.0`、参考尺、公式及第二关屏障说明。历史 0.2.0 曾通过线上流程检查，用户已实际扫码游玩并反馈地图字太小；该反馈不等于新版真机验收。正式网址二维码已生成于 `docs/qr/`，当前尚未提交；现场网络、多设备和印刷检查未完成。下文历史记录保留此前证据，不代表本次重新执行了每项人工检查。
 
 ## 0.4.1 本次验收与发布
 
 完整 `npm run check` 退出码 0：**41/41 Node、30/30 浏览器测试通过**，构建标记 **`26dc162b1a9e`**；[日志](./docs/validation-0.4.1.log)、[截图](./docs/screenshots/0.4.1/)。两关默认三次、一秒等待、3 / 4 / 5 次配置及既有主题、地图与异常恢复流程均通过。本轮真机复测尚未进行。
 
-发布状态：本地验收已通过，待本轮推送后的 Actions 和线上页面验证。
+发布状态：**已合并到 `main` 并推送，GitHub Pages 部署成功。** 功能提交 `fc26a72`；[成功工作流](https://github.com/eivorchen/b03/actions/runs/39091868969)。正式入口仍为 [eivorchen.github.io/b03](https://eivorchen.github.io/b03/)。
+
+线上 `release.json` 与九个交付文件均返回 HTTP 200，逐字节匹配本地构建（含本地字体和许可），见 [资源核对](./docs/deployment-assets-0.4.1.json)。内置浏览器刷新显示 v0.4.1、3 次测量、每次 1 秒；核对亮暗切换与刷新保持，完成第二关三次测量、确认定位及结果揭晓，切至第一关恢复 0 / 3 次，刷新返回可用首页。见 [线上首页](./docs/screenshots/0.4.1/live-home.png)、[线上结果](./docs/screenshots/0.4.1/live-result.png)。这些是本机线上检查，不等于新版真机扫码验收。
 
 ## 线上发布状态与后续更新
 
+- 当前线上 0.4.1：`fc26a72`，构建 `26dc162b1a9e`；验证范围见上节。
 - 0.3.0 功能提交：`08170f5f06d985a06f98581ae04d154498b4c789`；[成功发布](https://github.com/eivorchen/b03/actions/runs/38879011242)；[线上参考尺截图](./docs/screenshots/0.3.0/live-reference.png)。
 - Pages 发布来源：**GitHub Actions**（`build_type: workflow`）。
 - 首次成功发布：[Actions run 38858692029](https://github.com/eivorchen/b03/actions/runs/38858692029)。
@@ -132,7 +135,7 @@ npm ci --registry=https://registry.npmjs.org
 ## 已知限制与未完成验收
 
 - Chrome 尺寸和触控模拟不能代替 iOS、Android 真机及微信内置浏览器；工具栏伸缩、安全区域、旋转和实际误触仍需实测。
-- 用户已扫码游玩 0.2.0，但未形成设备、浏览器和网络的完整记录；0.3.0 / 0.4.0 真机复测、校园 Wi-Fi / 移动网络对照、多台真机同时游玩及印刷二维码检查仍未完成。
+- 用户已扫码游玩 0.2.0，但未形成设备、浏览器和网络的完整记录；0.4.1 真机复测、校园 Wi-Fi / 移动网络对照、多台真机同时游玩及印刷二维码检查仍未完成。
 - GitHub Pages 公开入口已在本机验证资源加载、直接访问和刷新；后续更新后的旧首页缓存及真机版本切换仍需观察。
 - 当前页面必要资源加载后可离线继续玩；不支持或承诺断网首次访问、离线刷新、关闭后重开、PWA 或离线缓存。
 - 所有代码和单局数据都在浏览器中，可被开发工具检查；没有抗作弊、账户、集中成绩存储、排行榜或兑奖核验机制。
@@ -142,7 +145,7 @@ npm ci --registry=https://registry.npmjs.org
 
 1. 在 Codex 中打开此项目，先读本文、PRD 和验收记录；查看 `git status`，保留用户后续改动。按下一条明确需求继续，避免重新初始化项目或重复安装现成环境。
 2. 邀请 10—15 名非专业参与者试玩，记录规则理解、误触、单关用时、偏差及等级分布，再决定是否调整参数。
-3. 用户确认本地效果并另行安排发布后，关注 Actions 发布结果，并在稳定网址复核资源、版本及刷新表现。
+3. 后续再次安排更新时，关注 Actions 发布结果，并在稳定网址复核资源、版本及刷新表现。
 4. 在校园网和移动网络下，用 iOS / Android 的微信与系统浏览器完成扫码到揭晓、旋转及多设备独立游玩验收。
 5. 使用已生成的 `docs/qr/b03-game-qr.png` 与 `.svg`，附文字网址，测试印刷尺寸并准备现场备用设备；二维码文件尚未提交。后续代码变更完成后更新版本及验收记录，运行相应检查。
 
@@ -154,8 +157,9 @@ npm ci --registry=https://registry.npmjs.org
 - [README.md](./README.md)：启动、构建、调试和项目入口。
 - [docs/implementation-notes.md](./docs/implementation-notes.md)：模型公式、候选求解、数值边界和实现约束。
 - [design.md](./design.md)：B「钛灰工程」美术与交互维护规范。
-- [docs/acceptance.md](./docs/acceptance.md)：0.4.0 本地验收及旧版本历史发布、验收结果。
-- [docs/validation-0.4.0.log](./docs/validation-0.4.0.log)：本轮 41 项 Node 与 30 项浏览器通过的原始输出。
+- [docs/acceptance.md](./docs/acceptance.md)：0.4.1 发布验收及旧版本历史发布、验收结果。
+- [docs/validation-0.4.1.log](./docs/validation-0.4.1.log)：本轮 41 项 Node 与 30 项浏览器通过的原始输出。
+- [docs/validation-0.4.0.log](./docs/validation-0.4.0.log)：美术方案本地验收日志。
 - [docs/validation-0.3.0.log](./docs/validation-0.3.0.log)：0.3.0 历史通过日志。
 - [docs/validation.log](./docs/validation.log)：第二版交付时通过的原始测试输出。
-- [docs/screenshots/0.4.0/](./docs/screenshots/0.4.0/)：本轮独立截图目录；旧版目录保留历史证据。
+- [docs/screenshots/0.4.1/](./docs/screenshots/0.4.1/)：本轮本地及线上截图目录；旧版目录保留历史证据。

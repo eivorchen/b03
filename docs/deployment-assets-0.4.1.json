@@ -1,0 +1,79 @@
+{
+  "verifiedAt": "2026-10-18T10:57:49.748713+08:00",
+  "url": "https://eivorchen.github.io/b03/",
+  "version": "0.4.1",
+  "revision": "26dc162b1a9e",
+  "workflow": "https://github.com/eivorchen/b03/actions/runs/39091868969",
+  "files": [
+    {
+      "file": "release.json",
+      "status": 200,
+      "bytes": 289,
+      "sha256": "111648e608c03160dbffbeebafb0d89eeb70a2196d1fb19a76bda6fc19a59ceb",
+      "matchesLocal": true
+    },
+    {
+      "file": "index.html",
+      "status": 200,
+      "bytes": 3088,
+      "sha256": "4245ae2d5d7d066985238313716af142d67b226834f0ad3ca4a911a4c67b07b3",
+      "matchesLocal": true
+    },
+    {
+      "file": "styles.css",
+      "status": 200,
+      "bytes": 25267,
+      "sha256": "3cb793017f84840b1e36304e67ac56672effbab2ef1e224366cbe0fee6a61a7d",
+      "matchesLocal": true
+    },
+    {
+      "file": "src/app.js",
+      "status": 200,
+      "bytes": 25180,
+      "sha256": "d7e1a46e6d9a0990ebc3359290e736f2c8f9ddfff6e97dcc5ca0edd99c349379",
+      "matchesLocal": true
+    },
+    {
+      "file": "src/config.js",
+      "status": 200,
+      "bytes": 3968,
+      "sha256": "40fda177479ef169fa69e17158fd8eef16358e618142bee151f88c4a7a6f07cd",
+      "matchesLocal": true
+    },
+    {
+      "file": "src/engine.js",
+      "status": 200,
+      "bytes": 11458,
+      "sha256": "b7ea266af770fe276a608d2e3c84c06bcfdea403db95238d93ec6f2324c42d12",
+      "matchesLocal": true
+    },
+    {
+      "file": "src/session.js",
+      "status": 200,
+      "bytes": 6466,
+      "sha256": "07bdd3bbf7cac67f0fe6e6aafd7b68ce4a50543f955d74f507bfdebe66906c3f",
+      "matchesLocal": true
+    },
+    {
+      "file": "src/theme.js",
+      "status": 200,
+      "bytes": 1574,
+      "sha256": "4a2a369697da8b9c3dbdad0fa3266a43843b890bc1234d82bbc69177e55618fd",
+      "matchesLocal": true
+    },
+    {
+      "file": "assets/fonts/rajdhani-semibold.ttf",
+      "status": 200,
+      "bytes": 390340,
+      "sha256": "94bbd25a18ca665999feb05a537de9fd2b860dcfb78bbe9ca00270825bf235da",
+      "matchesLocal": true
+    },
+    {
+      "file": "assets/fonts/OFL-Rajdhani.txt",
+      "status": 200,
+      "bytes": 4373,
+      "sha256": "f62ef357d3a1c3d27edd35a6e1ba350e8a8d13499797964eeadefbf0b3b15d1f",
+      "matchesLocal": true
+    }
+  ]
+}
