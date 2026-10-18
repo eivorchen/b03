@@ -71,7 +71,7 @@ test('rapid confirmations and movement cannot alter a locked measurement or debi
 });
 
 for (const level of [1, 2]) {
-  test(`default level ${level} uses four one-second locked measurements and reveals percentages only after submission`, () => {
+  test(`default level ${level} uses three one-second locked measurements and reveals percentages only after submission`, () => {
     let judgements = 0;
     const game = new GameSession({}, {
       now: () => 0,
@@ -83,13 +83,13 @@ for (const level of [1, 2]) {
       assert.ok(!JSON.stringify(game.state).includes('"errorPercent"'));
       assert.ok(!JSON.stringify(game.state).includes('"nearestPercent"'));
     };
-    assert.equal(game.nextConfig.version, '0.4.0');
-    assert.equal(game.nextConfig.measurements, 4);
+    assert.equal(game.nextConfig.version, '0.4.1');
+    assert.equal(game.nextConfig.measurements, 3);
     assert.equal(game.nextConfig.measurementMs, 1000);
     assertUnrevealed();
     game.start(level, { source, now: 0 });
     assertUnrevealed();
-    for (let index = 0; index < 4; index++) {
+    for (let index = 0; index < 3; index++) {
       const now = index * 1000;
       assert.equal(game.select(points[index]), true);
       assertUnrevealed();
@@ -98,7 +98,7 @@ for (const level of [1, 2]) {
       assert.equal(game.state.measurementDeadline, now + 1000);
       for (let repeat = 0; repeat < 10; repeat++) {
         assert.equal(game.beginMeasurement(now + repeat), false);
-        assert.equal(game.select(points[(index + 1) % 4]), false);
+        assert.equal(game.select(points[(index + 1) % 3]), false);
         assert.equal(game.cancelSelection(), false);
         assert.equal(game.submit(now + repeat), false);
       }
@@ -189,15 +189,14 @@ test('next-game configuration cannot alter an in-progress game or its timer', ()
   game.select(points[0]);
   game.beginMeasurement(10);
   assert.equal(game.configure({ measurements: 5, measurementMs: 200, K: 200 }), true);
-  assert.equal(game.state.config.measurements, 4);
+  assert.equal(game.state.config.measurements, 3);
   assert.equal(game.state.config.K, initial.config.K);
   assert.equal(game.state.measurementDeadline, 30);
   assert.equal(game.nextConfig.measurements, 5);
   game.tick(30);
   measure(game, points[1], 100);
-  measure(game, points[2], 200);
   assert.equal(game.state.phase, 'select');
-  measure(game, points[3], 300);
+  measure(game, points[2], 200);
   assert.equal(game.state.phase, 'locate');
   const next = game.start(2, { source: { x: 1200, y: 650 }, now: 400 });
   assert.equal(next.config.measurements, 5);
@@ -288,8 +287,8 @@ test('a thrown solver failure also preserves the submitted guess and all measure
   assert.equal(game.submit(500), true);
   assert.equal(game.state.phase, 'error');
   assert.deepEqual(game.state.guess, source);
-  assert.equal(game.state.records.length, 4);
-  assert.equal(game.state.used, 4);
+  assert.equal(game.state.records.length, 3);
+  assert.equal(game.state.used, 3);
   assert.equal(game.state.result, null);
   game.start(1, { source, now: 700 });
   assert.equal(game.state.error, null);

@@ -32,6 +32,7 @@ try {
   await page.locator('.theme-switch [data-theme="light"]').click();
   await page.locator('[data-level="2"]').click();
   await page.locator('[data-action="start"]').click();
+  await expect(page.locator('.game-meta .pill')).toHaveText(`已用 0 / ${DEFAULT_CONFIG.measurements} 次`);
   async function select(point) {
     const field=page.locator('#field');await field.scrollIntoViewIfNeeded();
     const box=await field.boundingBox();
@@ -54,7 +55,7 @@ try {
   await page.setViewportSize({width:844,height:390});
   await capture('landscape-dark.png');
   await page.setViewportSize({width:1280,height:900});
-  for(const point of points.slice(2)) {
+  for(const point of points.slice(2,DEFAULT_CONFIG.measurements)) {
     await select(point);await page.locator('[data-action="measure"]').click();
     count++;
     await page.locator(`button[data-record="${count-1}"]`).waitFor({state:'visible'});

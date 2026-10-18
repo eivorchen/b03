@@ -276,24 +276,24 @@ test('theme controls and gameplay survive unavailable localStorage reads or writ
 });
 
 for (const level of [1, 2]) {
-  test(`level ${level} starts directly with four one-second measurements and reveals no result metrics early`, async ({ page }) => {
-    const seed = `browser-default-four-${level}`;
+  test(`level ${level} starts directly with three one-second measurements and reveals no result metrics early`, async ({ page }) => {
+    const seed = `browser-default-three-${level}`;
     const source = generateSource(level, DEFAULT_CONFIG, seededRandom(seed));
     await openGame(page, seed);
     // Check the defaults without opening or changing the settings disclosure.
-    await expect(page.getByLabel('每关测量次数', { exact: true })).toHaveValue('4');
+    await expect(page.getByLabel('每关测量次数', { exact: true })).toHaveValue('3');
     await expect(page.getByLabel('每次测量等待', { exact: true })).toHaveValue('1000');
     await page.locator(`[data-level="${level}"]`).click();
     await action(page, 'start').click();
-    await expect(page.locator('.game-meta .pill')).toHaveText('已用 0 / 4 次');
+    await expect(page.locator('.game-meta .pill')).toHaveText('已用 0 / 3 次');
     await expectNoResultMetrics(page);
-    for (let index = 0; index < 4; index += 1) {
+    for (let index = 0; index < 3; index += 1) {
       await choosePoint(page, points[index]);
       await expectNoResultMetrics(page);
-      await expect(page.locator('.game-meta .pill')).toHaveText(`已用 ${index} / 4 次`);
+      await expect(page.locator('.game-meta .pill')).toHaveText(`已用 ${index} / 3 次`);
       await action(page, 'measure').click();
       for (let repeat = 0; repeat < 6; repeat += 1) await action(page, 'measure').dispatchEvent('click');
-      await expect(page.locator('.game-meta .pill')).toHaveText(`已用 ${index + 1} / 4 次`);
+      await expect(page.locator('.game-meta .pill')).toHaveText(`已用 ${index + 1} / 3 次`);
       await expectNoResultMetrics(page);
       await page.clock.runFor(999);
       await expect(recordButtons(page)).toHaveCount(index);
@@ -304,7 +304,7 @@ for (const level of [1, 2]) {
       await page.clock.runFor(17);
       await expect(recordButtons(page)).toHaveCount(index + 1);
       await expectNoResultMetrics(page);
-      if (index < 3) await expect(action(page, 'submit')).toHaveCount(0);
+      if (index < 2) await expect(action(page, 'submit')).toHaveCount(0);
     }
     await expect(action(page, 'submit')).toBeDisabled();
     await choosePoint(page, source);
@@ -313,7 +313,7 @@ for (const level of [1, 2]) {
     await action(page, 'submit').click();
     await expect(page.locator('.result-title')).toHaveText('定位成功');
     await expectPercentage(page, 'source-error', errorPercentage(guess, source));
-    await expect(page.locator('.game-meta .pill')).toHaveText('已用 4 / 4 次');
+    await expect(page.locator('.game-meta .pill')).toHaveText('已用 3 / 3 次');
   });
 }
 
@@ -705,8 +705,8 @@ test.describe('mobile-sized Chrome emulation (not a substitute for physical phon
       await disclosure.locator('summary').click();
     }
     await action(page, 'start').click();
-    await expect(page.locator('.game-meta .pill')).toHaveText('已用 0 / 4 次');
-    for (let index = 0; index < 4; index += 1) {
+    await expect(page.locator('.game-meta .pill')).toHaveText('已用 0 / 3 次');
+    for (let index = 0; index < 3; index += 1) {
       await finishMeasurement(page, points[index], index);
       await expectNoHorizontalOverflow(page, width);
       await expectNoResultMetrics(page);
@@ -719,7 +719,7 @@ test.describe('mobile-sized Chrome emulation (not a substitute for physical phon
     await action(page, 'demo').click();
     await expectNoHorizontalOverflow(page, width);
     await action(page, 'start').click();
-    await expect(page.locator('.game-meta .pill')).toHaveText('已用 0 / 4 次');
+    await expect(page.locator('.game-meta .pill')).toHaveText('已用 0 / 3 次');
     await action(page, 'switch').click();
     await expect(page.locator('.game-title')).toHaveText('隔墙寻源');
     await finishMeasurement(page, points[0], 0);
@@ -801,7 +801,7 @@ test('project-subpath resources load and direct reload returns to a usable start
   await expect(page.locator('#app')).toBeVisible();
   await expect(page.locator('.hero-title')).toBeVisible();
   await action(page, 'start').click();
-  await expect(page.locator('.game-meta .pill')).toHaveText('已用 0 / 4 次');
+  await expect(page.locator('.game-meta .pill')).toHaveText('已用 0 / 3 次');
   await expect(page.locator('#field .true-source')).toHaveCount(0);
 });
 

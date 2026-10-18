@@ -8,7 +8,7 @@ test('static release resolves every entry and module under an arbitrary project 
   const output=new URL('../dist/',import.meta.url);
   const release=JSON.parse(await readFile(new URL('release.json',output),'utf8'));
   assert.match(release.revision,/^[a-f0-9]{12}$/);
-  assert.equal(release.version,'0.4.0');
+  assert.equal(release.version,'0.4.1');
   const base=new URL('https://example.invalid/any-repository/');
   for(const file of release.files) {
     if(file.endsWith('.ttf')) {

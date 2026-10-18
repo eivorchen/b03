@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#e8eaeb">
-  <meta name="description" content="用四次测量，寻找隐藏的模拟信号源。核能文化节 · 信号寻踪。">
+  <meta name="description" content="用三次测量，寻找隐藏的模拟信号源。核能文化节 · 信号寻踪。">
   <title>信号寻踪 · B03</title>
   <script>
     // Select the first paint before styles/modules load, including the retry screen.
@@ -17,7 +17,7 @@
     })();
   </script>
   <style>html{background:#e8eaeb;color:#292b2e;color-scheme:light}html[data-theme="dark"]{background:#292b2e;color:#eff2f4;color-scheme:dark}body{margin:0;background:inherit;color:inherit;font-family:system-ui,sans-serif}#loading{max-width:32rem;margin:20vh auto;padding:2rem}#loading button{padding:1rem;border:1px solid;border-radius:0;background:transparent;color:inherit;font:inherit}[hidden]{display:none!important}</style>
-  <link id="theme-style" rel="stylesheet" href="./styles.css?v=0.4.0" onload="this.dataset.loaded='true'" onerror="this.dataset.failed='true'">
+  <link id="theme-style" rel="stylesheet" href="./styles.css?v=0.4.1" onload="this.dataset.loaded='true'" onerror="this.dataset.failed='true'">
 </head>
 <body>
   <div id="loading" role="status"><h1>信号寻踪</h1><p id="loading-message">正在准备探测设备…</p><button id="retry-load" hidden>重新加载</button></div>
@@ -37,7 +37,7 @@
           style.addEventListener('error', () => reject(new Error('style')), { once: true });
           setTimeout(() => style.sheet ? resolve() : reject(new Error('style timeout')), 8000);
         }),
-        import('./src/app.js?v=0.4.0')
+        import('./src/app.js?v=0.4.1')
       ]), new Promise((resolve, reject) => {
         bootTimeout = setTimeout(() => reject(new Error('resource timeout')), 12000);
       })]);
