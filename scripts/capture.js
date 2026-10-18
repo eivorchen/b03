@@ -24,11 +24,25 @@ try {
     await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
     await page.screenshot({path:fileURLToPath(new URL(name,output)),fullPage:true});
   }
+  async function capturePress(name) {
+    await page.emulateMedia({reducedMotion:'no-preference'});
+    const button=page.locator('[data-action="start"]');
+    const box=await button.boundingBox();
+    await page.mouse.move(box.x+box.width/2,box.y+box.height/2);
+    await page.mouse.down();
+    await expect(button).toHaveClass(/\bis-pressed\b/);
+    await capture(name);
+    // Cancel outside the button so a screenshot does not start a round.
+    await page.mouse.move(0,0);await page.mouse.up();
+    await page.emulateMedia({reducedMotion:'reduce'});
+  }
   await page.goto('http://127.0.0.1:4173/b03/?seed=acceptance-visual');
   await page.locator('#app').waitFor({state:'visible'});
   await capture('desktop-home-light.png');
+  await capturePress('desktop-press-light.png');
   await page.locator('.theme-switch [data-theme="dark"]').click();
   await capture('desktop-home-dark.png');
+  await capturePress('desktop-press-dark.png');
   await page.locator('.theme-switch [data-theme="light"]').click();
   await page.locator('[data-level="2"]').click();
   await page.locator('[data-action="start"]').click();

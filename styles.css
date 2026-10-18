@@ -15,6 +15,9 @@
   --accent: #536b87;
   --accent-ink: #ffffff;
   --accent-soft: #dce3e9;
+  --press-surface: #ccd5de;
+  --press-ink: #292b2e;
+  --press-line: #536b87;
   --muted: #5d6872;
   --line: #c7cdd2;
   --strong-line: #8d99a5;
@@ -41,6 +44,9 @@
   --accent: #91acc7;
   --accent-ink: #202a34;
   --accent-soft: #3c4b5b;
+  --press-surface: #52677a;
+  --press-ink: #eff2f4;
+  --press-line: #bdd1e5;
   --muted: #afbac4;
   --line: #505a64;
   --strong-line: #718191;
@@ -197,12 +203,13 @@ svg { display: block; }
   text-decoration: none;
 }
 .button.primary { isolation: isolate; border-color: transparent; color: var(--accent-ink); background: transparent; }
-.button.primary::before { content: ""; position: absolute; z-index: -1; inset: -1px; background: var(--accent); clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%); }
-.button.secondary { background: var(--surface); }
+.button.primary::before, .button.primary::after { content: ""; position: absolute; pointer-events: none; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%); }
+.button.primary::before { z-index: -1; inset: -1px; background: var(--accent); }
+.button.primary::after { z-index: -2; inset: -1px -1px -3px; background: var(--ink); }
+.button.secondary { --control-base-shadow: 0 2px 0 var(--strong-line); background: var(--surface); box-shadow: var(--control-base-shadow); }
 .button.quiet { border-color: transparent; color: var(--muted); }
 .button.danger { border-color: var(--strong-line); color: var(--ink); }
 .button:disabled { opacity: .42; }
-.button:not(:disabled):active { transform: translateY(1px); }
 .button svg { width: 18px; height: 18px; }
 .settings, .help { min-width: 0; margin-top: 0; color: var(--muted); font-size: 15px; line-height: 1.8; }
 .home-details > details, .settings + .help { border-top: 1px solid var(--line); }
@@ -299,7 +306,7 @@ h1.game-title, .game-title h1 { margin: 0; font-size: 24px; font-weight: 600; li
 .comparison { margin: 12px 0 0; color: var(--muted); font-size: 15px; line-height: 1.7; }
 .comparison:empty { display: none; }
 .comparison strong { color: var(--ink); font-weight: 600; }
-.action-panel { margin-top: 20px; }
+.action-panel { position: relative; margin-top: 20px; }
 .status-copy { margin: 0 0 10px; color: var(--ink); font-size: 16px; font-weight: 550; line-height: 1.65; }
 .hint { margin: 0 0 12px; color: var(--muted); font-size: 15px; line-height: 1.75; }
 .hint:empty { display: none; }
@@ -340,22 +347,51 @@ h1.game-title, .game-title h1 { margin: 0; font-size: 24px; font-weight: 600; li
 .demo-panel p { margin-bottom: 10px; font-size: 15px; }
 .demo-panel p:last-child { margin-bottom: 0; }
 .demo-panel .progress-track { margin-bottom: 14px; }
-.is-reading-new .reading, .reading.is-reading-new { animation: reading-arrives 280ms ease-out both; }
-.record.is-reading-new { animation: record-arrives 600ms ease-out; }
+.is-reading-new .reading, .reading.is-reading-new { animation: reading-arrives 300ms ease-out both; }
+.record.is-reading-new { animation: record-arrives 650ms ease-out; }
 .result-panel.is-revealing { animation: result-arrives 220ms ease-out both; }
-@keyframes reading-arrives { from { color: var(--accent); transform: translateY(3px); } to { color: var(--ink); transform: translateY(0); } }
-@keyframes record-arrives { 0%, 35% { background: var(--accent-soft); } 100% { background: transparent; } }
+@keyframes reading-arrives { from { color: var(--accent); transform: translateY(4px); } to { color: var(--ink); transform: translateY(0); } }
+@keyframes record-arrives { 0%, 40% { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); } 100% { background: transparent; box-shadow: inset 0 0 0 transparent; } }
 @keyframes result-arrives { from { opacity: .45; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
 @media (hover: hover) {
-  .theme-switch button:not([aria-pressed="true"]):hover { color: var(--ink); background: var(--accent-soft); }
-  .level-option:hover { border-color: var(--accent); background: var(--surface); }
-  .button.primary:hover:not(:disabled)::before { background: var(--ink); }
-  .button.primary:hover:not(:disabled) { color: var(--paper); }
-  .button.secondary:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
-  .button.quiet:hover:not(:disabled), .button.danger:hover:not(:disabled) { color: var(--ink); background: var(--accent-soft); }
-  .record:not(.empty):hover { background: var(--accent-soft); }
+  .theme-switch button:not([aria-pressed="true"]):not(.is-pressed):hover { color: var(--ink); background: var(--accent-soft); }
+  .level-option:not(.is-pressed):hover { border-color: var(--accent); background: var(--surface); }
+  .button.primary:hover:not(:disabled):not(.is-pressed)::before { background: var(--ink); }
+  .button.primary:hover:not(:disabled):not(.is-pressed) { color: var(--paper); }
+  .button.secondary:hover:not(:disabled):not(.is-pressed) { background: var(--accent-soft); border-color: var(--accent); }
+  .button.quiet:hover:not(:disabled):not(.is-pressed), .button.danger:hover:not(:disabled):not(.is-pressed) { color: var(--ink); background: var(--accent-soft); }
+  .record:not(.empty):not(.is-pressed):hover { background: var(--accent-soft); }
 }
+
+/* Press feedback follows the pointer lifecycle. No selector moves a control's hit box. */
+:where(button, summary) { --control-base-shadow: 0 0 0 transparent; }
+.level-option[aria-pressed="true"] { --control-base-shadow: inset 3px 0 0 var(--accent); }
+.record.active { --control-base-shadow: -4px 0 0 var(--accent-soft), 4px 0 0 var(--accent-soft); }
+.control-label { display: inline-block; pointer-events: none; }
+button.is-pressed:not(:disabled), summary.is-pressed {
+  color: var(--press-ink);
+  border-color: var(--press-line);
+  background: var(--press-surface);
+  box-shadow: inset 0 2px 0 var(--press-line), inset 0 0 0 1px var(--press-line);
+}
+button.is-pressed:not(:disabled) > span { transform: translateY(2px); }
+button.is-pressed:not(:disabled) :is(.level-no, .level-body span, .record-no, .record-content small, .brand-mark) { color: inherit; }
+button.is-pressed:not(:disabled) :is(.record-no, .brand-mark) { border-color: var(--press-line); }
+.button.primary.is-pressed:not(:disabled) { color: var(--paper); border-color: transparent; background: transparent; box-shadow: none; }
+.button.primary.is-pressed:not(:disabled)::before { background: var(--ink); box-shadow: inset 0 0 0 2px var(--press-line); transform: translateY(2px); }
+
+/* A short receipt belongs to the activated control, rather than the whole screen. */
+button.is-activated:not(:disabled), summary.is-activated { animation: control-accepted 200ms ease-out; }
+.button.primary.is-activated:not(:disabled) { animation: none; }
+.button.primary.is-activated:not(:disabled)::before { animation: primary-accepted 200ms ease-out; }
+.action-panel.is-command-accepted::before { content: ""; position: absolute; top: -8px; left: 0; right: 0; height: 3px; background: var(--accent); pointer-events: none; animation: command-accepted 220ms ease-out both; }
+.action-panel.is-invalid { outline: 2px solid transparent; outline-offset: 8px; animation: invalid-command 280ms ease-out both; }
+.action-panel.is-invalid .hint { color: var(--amber); }
+@keyframes control-accepted { 0%, 55% { box-shadow: var(--control-base-shadow), inset 0 0 0 2px var(--accent); } 100% { box-shadow: var(--control-base-shadow), inset 0 0 0 0 transparent; } }
+@keyframes primary-accepted { 0%, 55% { box-shadow: inset 0 0 0 2px var(--paper); } 100% { box-shadow: inset 0 0 0 0 transparent; } }
+@keyframes command-accepted { 0%, 55% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes invalid-command { 0%, 65% { outline-color: var(--amber); } 100% { outline-color: transparent; } }
 
 @media (max-width: 1050px) {
   #app { padding-inline: max(26px, env(safe-area-inset-left)); }
@@ -452,4 +488,9 @@ h1.game-title, .game-title h1 { margin: 0; font-size: 24px; font-weight: 600; li
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+  button.is-pressed:not(:disabled) > span, .button.primary.is-pressed:not(:disabled)::before { transform: none; }
+  button.is-activated:not(:disabled), summary.is-activated { box-shadow: var(--control-base-shadow), inset 0 0 0 2px var(--accent); }
+  .button.primary.is-activated:not(:disabled) { box-shadow: none; }
+  .button.primary.is-activated:not(:disabled)::before { box-shadow: inset 0 0 0 2px var(--paper); }
+  .action-panel.is-invalid { outline-color: var(--amber); }
 }

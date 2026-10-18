@@ -275,6 +275,94 @@ test('theme controls and gameplay survive unavailable localStorage reads or writ
   }
 });
 
+test('button feedback follows a real press and clears on movement, cancellation and blur without activating', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await openGame(page, 'browser-button-cancellation');
+  const start = action(page, 'start');
+  const paint = () => start.evaluate(element => [
+    getComputedStyle(element), getComputedStyle(element, '::before'), getComputedStyle(element, '::after'),
+    ...[...element.children].map(child => getComputedStyle(child)),
+  ].map(style => ({ background: style.backgroundColor, color: style.color, shadow: style.boxShadow, transform: style.transform })));
+  for (const cancellation of ['move', 'pointercancel', 'blur']) {
+    await start.scrollIntoViewIfNeeded();
+    const box = await start.boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    const before = await paint();
+    await page.mouse.down();
+    await expect(start).toHaveClass(/\bis-pressed\b/);
+    await expect.poll(paint).not.toEqual(before);
+    if (cancellation === 'move') await page.mouse.move(box.x + box.width + 24, box.y + box.height / 2);
+    else if (cancellation === 'pointercancel') {
+      await start.dispatchEvent('pointercancel', { pointerId: 1, pointerType: 'mouse', button: 0 });
+    } else await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+    await expect(start).not.toHaveClass(/\bis-pressed\b/);
+    await expect(page.locator('.is-activated')).toHaveCount(0);
+    // A synthetic cancel/blur does not cancel Chromium's physical mouse.
+    // Release outside the control, matching a cancelled native gesture.
+    await page.mouse.move(box.x + box.width + 24, box.y + box.height / 2);
+    await page.mouse.up();
+    await expect(page.locator('.hero-title')).toBeVisible();
+    await expect(page.locator('.is-pressed, .is-activated')).toHaveCount(0);
+  }
+});
+
+test('accepted button and summary feedback survives rendering while keyboard and measurement guards stay intact', async ({ page }) => {
+  await openGame(page, 'browser-button-activation');
+  const dark = themeButton(page, 'dark');
+  await dark.focus();
+  await dark.press('Enter');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(dark).toHaveClass(/\bis-activated\b/);
+  await expect(dark).toBeFocused();
+  await page.clock.runFor(250);
+  await expect(dark).not.toHaveClass(/\bis-activated\b/);
+
+  const secondLevel = page.locator('[data-level="2"]');
+  const previousLevelButton = await secondLevel.elementHandle();
+  await secondLevel.focus();
+  await secondLevel.press('Space');
+  expect(await previousLevelButton.evaluate(element => element.isConnected)).toBe(false);
+  await expect(secondLevel).toHaveAttribute('aria-pressed', 'true');
+  await expect(secondLevel).toHaveClass(/\bis-activated\b/);
+  await page.clock.runFor(250);
+  await expect(secondLevel).not.toHaveClass(/\bis-activated\b/);
+
+  const settings = page.locator('details.settings');
+  const summary = settings.locator('summary');
+  await summary.focus();
+  await summary.press('Space');
+  await expect(settings).toHaveAttribute('open', '');
+  await expect(summary).toHaveClass(/\bis-activated\b/);
+  await page.clock.runFor(250);
+  await expect(summary).not.toHaveClass(/\bis-activated\b/);
+
+  await action(page, 'start').click();
+  await expect(page.locator('.game-title')).toHaveText('隔墙寻源');
+  const measure = action(page, 'measure');
+  await expect(measure).toBeDisabled();
+  await measure.dispatchEvent('pointerdown', { pointerId: 7, pointerType: 'touch', button: 0 });
+  await measure.dispatchEvent('click');
+  await expect(measure).not.toHaveClass(/\bis-(?:pressed|activated)\b/);
+  await expect(page.locator('.game-meta .pill')).toHaveText('已用 0 / 3 次');
+
+  await choosePoint(page, points[0]);
+  await measure.click();
+  await page.clock.runFor(400);
+  for (let repeat = 0; repeat < 5; repeat += 1) {
+    await measure.dispatchEvent('pointerdown', { pointerId: 7, pointerType: 'touch', button: 0 });
+    await measure.dispatchEvent('click');
+  }
+  await expect(measure).not.toHaveClass(/\bis-(?:pressed|activated)\b/);
+  await expect(page.locator('.game-meta .pill')).toHaveText('已用 1 / 3 次');
+  await page.clock.runFor(599);
+  await expect(recordButtons(page)).toHaveCount(0);
+  await expect(measure).toBeDisabled();
+  await page.clock.runFor(18);
+  await expect(recordButtons(page)).toHaveCount(1);
+  await expect(page.locator('.game-meta .pill')).toHaveText('已用 1 / 3 次');
+  await expect(page.locator('#field .true-source')).toHaveCount(0);
+});
+
 for (const level of [1, 2]) {
   test(`level ${level} starts directly with three one-second measurements and reveals no result metrics early`, async ({ page }) => {
     const seed = `browser-default-three-${level}`;
@@ -511,6 +599,45 @@ test('collinear measurements recognize a distinct mirrored source without previe
 
 test.describe('mobile-sized Chrome emulation (not a substitute for physical phone testing)', () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
+
+  test('reduced-motion button feedback keeps its color cue without motion or narrow-screen overflow', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 740 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await openGame(page, 'browser-button-reduced-motion');
+    const start = action(page, 'start');
+    await start.scrollIntoViewIfNeeded();
+    const box = await start.boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    const readStyle = () => start.evaluate(element => [
+      getComputedStyle(element), getComputedStyle(element, '::before'), getComputedStyle(element, '::after'),
+      ...[...element.children].map(child => getComputedStyle(child)),
+    ].map(style => ({
+        colors: [style.backgroundColor, style.color, style.borderColor],
+        transform: style.transform, translate: style.translate,
+        animation: style.animationDuration, transition: style.transitionDuration,
+      })));
+    const before = await readStyle();
+    await page.mouse.down();
+    await expect(start).toHaveClass(/\bis-pressed\b/);
+    const pressed = await readStyle();
+    expect(pressed.map(style => style.colors)).not.toEqual(before.map(style => style.colors));
+    for (const [index, style] of pressed.entries()) {
+      expect(style.transform).toBe(before[index].transform);
+      expect(style.translate).toBe(before[index].translate);
+      expect(style.animation.split(',').every(duration => parseFloat(duration) <= 0.00001)).toBe(true);
+      expect(style.transition.split(',').every(duration => parseFloat(duration) <= 0.00001)).toBe(true);
+    }
+    const pressedBox = await start.boundingBox();
+    expect(pressedBox.x).toBeCloseTo(box.x, 2);
+    expect(pressedBox.y).toBeCloseTo(box.y, 2);
+    await expectNoHorizontalOverflow(page, 320);
+    await page.mouse.up();
+    await expect(page.locator('.game-title')).toBeVisible();
+    await expect(page.locator('.is-pressed')).toHaveCount(0);
+    await choosePoint(page, points[0]);
+    await expectReadableMapText(page);
+    await expectNoHorizontalOverflow(page, 320);
+  });
 
   test('dark theme stays readable without horizontal overflow on a 320px phone through results and demo', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 740 });

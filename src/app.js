@@ -1,6 +1,7 @@
 import { DEFAULT_CONFIG } from './config.js';
 import { GameSession } from './session.js';
 import { currentTheme, selectTheme, syncThemeControls } from './theme.js';
+import { installControlFeedback, pulseFeedback } from './feedback.js';
 import { distance, signal, meter, seededRandom, wallForLevel, readingReferences } from './engine.js';
 
 const $ = (selector) => document.querySelector(selector);
@@ -20,10 +21,10 @@ let mapObserver = null;
 const titles = { 1: '基础定位', 2: '隔墙寻源' };
 const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const time = ms => `${Math.floor(ms / 60000).toString().padStart(2, '0')}:${Math.floor(ms / 1000 % 60).toString().padStart(2, '0')}`;
-const button = (action, text, kind = 'secondary', disabled = false) => `<button class="button ${kind}" data-action="${action}" ${disabled ? 'disabled' : ''}>${text}</button>`;
+const button = (action, text, kind = 'secondary', disabled = false) => `<button class="button ${kind}" data-action="${action}" ${disabled ? 'disabled' : ''}><span class="control-label">${text}</span></button>`;
 
 function header() {
-  return `<header class="site-header"><button class="brand" data-action="home" aria-label="信号寻踪，返回开始页"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M12 4H4v12M20 28h8V16M11 21l10-10M16 11h5v5"/></svg></span><span class="brand-copy">信号寻踪</span></button><div class="header-tools"><div class="theme-switch" role="group" aria-label="外观模式">${['light','dark'].map(theme=>`<button type="button" data-theme="${theme}" aria-label="${theme==='light'?'亮色模式':'暗色模式'}" aria-pressed="${currentTheme()===theme}">${theme==='light'?'亮':'暗'}</button>`).join('')}</div><span class="version">v${DEFAULT_CONFIG.version}</span></div></header>`;
+  return `<header class="site-header"><button class="brand" data-action="home" aria-label="信号寻踪，返回开始页"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M12 4H4v12M20 28h8V16M11 21l10-10M16 11h5v5"/></svg></span><span class="brand-copy">信号寻踪</span></button><div class="header-tools"><div class="theme-switch" role="group" aria-label="外观模式">${['light','dark'].map(theme=>`<button type="button" data-theme="${theme}" aria-label="${theme==='light'?'亮色模式':'暗色模式'}" aria-pressed="${currentTheme()===theme}"><span class="control-label">${theme==='light'?'亮':'暗'}</span></button>`).join('')}</div><span class="version">v${DEFAULT_CONFIG.version}</span></div></header>`;
 }
 function footer() {
   return screen==='home'?'<footer class="site-footer">核能文化节</footer>':'';
@@ -224,7 +225,10 @@ root.addEventListener('click', event=>{
   else if(action==='home'){demo=null;screen='home';game.resetToHome();render();window.scrollTo(0,0);}
   else if(action==='demo'||action==='replay-demo')showDemo();
   else if(action==='demo-back'){screen=demo.returnScreen;demo=null;render();window.scrollTo(0,0);}
-  else if(action==='measure'){game.beginMeasurement(performance.now());render();}
+  else if(action==='measure'){
+    const accepted=game.beginMeasurement(performance.now());render();
+    if(accepted) pulseFeedback($('.action-panel'),'is-command-accepted');
+  }
   else if(action==='cancel'){game.cancelSelection();render();}
   else if(action==='submit'){game.submit(performance.now());render();}
   else if(action==='retry-judgement'){game.retryJudgement(performance.now());render();}
@@ -237,9 +241,11 @@ root.addEventListener('change', event=>{
 });
 function choose(point) {
   if(screen!=='game'||!['select','locate'].includes(game.state.phase))return;
-  if(!game.select(point)){game.cancelSelection();notice='请避开屏障和已有测点。';}
+  const accepted=game.select(point);
+  if(!accepted){game.cancelSelection();notice='请避开屏障和已有测点。';}
   else notice='';
   render();
+  if(!accepted) pulseFeedback($('.action-panel'),'is-invalid',300);
 }
 function bindMap() {
   const field=$('#field');if(!field||screen!=='game')return;
@@ -288,5 +294,6 @@ function frame(now) {
   }
   requestAnimationFrame(frame);
 }
+installControlFeedback(root);
 render();
 requestAnimationFrame(frame);

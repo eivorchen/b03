@@ -1,6 +1,6 @@
 {
   "name": "b03-signal-trace",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "private": true,
   "type": "module",
   "description": "B03 信号寻踪 — 无运行时依赖的双关卡静态游戏",

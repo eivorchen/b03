@@ -15,7 +15,7 @@ test('configuration creates independent immutable snapshots with the specified d
   input.wall.x = 10;
   assert.equal(first.wall.x, 750);
   assert.equal(second.wall.x, 780);
-  assert.equal(DEFAULT_CONFIG.version, '0.4.1');
+  assert.equal(DEFAULT_CONFIG.version, '0.4.2');
   assert.equal(DEFAULT_CONFIG.measurements, 3);
   assert.equal(DEFAULT_CONFIG.measurementMs, 1000);
   assert.notEqual(first.wall, second.wall);
