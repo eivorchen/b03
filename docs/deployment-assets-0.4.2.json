@@ -1,0 +1,86 @@
+{
+  "verifiedAt": "2026-10-19T16:01:11.670866+08:00",
+  "url": "https://eivorchen.github.io/b03/",
+  "version": "0.4.2",
+  "revision": "8b0b5c6497d3",
+  "workflow": "https://github.com/eivorchen/b03/actions/runs/39219638962",
+  "files": [
+    {
+      "file": "release.json",
+      "status": 200,
+      "bytes": 312,
+      "sha256": "b50b78a8b33d0e620a1b73cb758d4a17d4065ab3596f64bccb376d4ebfe94592",
+      "matchesLocal": true
+    },
+    {
+      "file": "index.html",
+      "status": 200,
+      "bytes": 3088,
+      "sha256": "408225bd7a2d7305e2acca598cf261b719eb85897c5624a88c9c59031e5f5877",
+      "matchesLocal": true
+    },
+    {
+      "file": "styles.css",
+      "status": 200,
+      "bytes": 28843,
+      "sha256": "f8889e263f7d67a7ab89965ef2bbcc6d7a062c5f4c0140ea7a49227b0dbbc7ab",
+      "matchesLocal": true
+    },
+    {
+      "file": "src/app.js",
+      "status": 200,
+      "bytes": 25558,
+      "sha256": "c4d00be7ea6c91669c7bcf15f692d4ac6b21833eff846918b98d1720a7237432",
+      "matchesLocal": true
+    },
+    {
+      "file": "src/config.js",
+      "status": 200,
+      "bytes": 3968,
+      "sha256": "766558ae7755c340d3c8cb8e3f45325070e1b168a0f80a73a11ae0e4fd200688",
+      "matchesLocal": true
+    },
+    {
+      "file": "src/engine.js",
+      "status": 200,
+      "bytes": 11458,
+      "sha256": "b7ea266af770fe276a608d2e3c84c06bcfdea403db95238d93ec6f2324c42d12",
+      "matchesLocal": true
+    },
+    {
+      "file": "src/feedback.js",
+      "status": 200,
+      "bytes": 3933,
+      "sha256": "1b320a3306a7e8b83c1922950c4ad50d98e1347cdd88a283a00edc9782e26d67",
+      "matchesLocal": true
+    },
+    {
+      "file": "src/session.js",
+      "status": 200,
+      "bytes": 6466,
+      "sha256": "9d387455cd947333db066b47216ad347d4c2cbe33fb2ae038f5a8ecf490f979c",
+      "matchesLocal": true
+    },
+    {
+      "file": "src/theme.js",
+      "status": 200,
+      "bytes": 1574,
+      "sha256": "4a2a369697da8b9c3dbdad0fa3266a43843b890bc1234d82bbc69177e55618fd",
+      "matchesLocal": true
+    },
+    {
+      "file": "assets/fonts/rajdhani-semibold.ttf",
+      "status": 200,
+      "bytes": 390340,
+      "sha256": "94bbd25a18ca665999feb05a537de9fd2b860dcfb78bbe9ca00270825bf235da",
+      "matchesLocal": true
+    },
+    {
+      "file": "assets/fonts/OFL-Rajdhani.txt",
+      "status": 200,
+      "bytes": 4373,
+      "sha256": "f62ef357d3a1c3d27edd35a6e1ba350e8a8d13499797964eeadefbf0b3b15d1f",
+      "matchesLocal": true
+    }
+  ]
+}

@@ -2,9 +2,9 @@
 
 面向核能文化节的双关卡定位游戏。玩家在连续地图上选择测点，确认测量、比较读数，用完机会后提交信号源位置。第一关只考虑距离，第二关加入一道屏障；有效的镜像多解也可以得到认可。
 
-本地应用版本为 **0.4.2**，分支为 `feat/mechanical-button-feedback`；本轮未推送，线上仍为 **0.4.1**。本轮加强按键的硬底座、内部压合、高反差按住状态和单次操作回执，采用 **B「钛灰工程」**：亮暗主题、直角与少量切角、可读地图标记、本地数字字体，以及选新测点时的“上次读数”提示。玩法依据 [PRD v0.5](./prd.md)，美术与交互规范见 [design.md](./design.md)。默认三次测量、每次一秒，信号模型与公平判定保持不变。
+当前应用版本为 **0.4.2**，按键反馈分支已合并到 `main`、推送并发布到 GitHub Pages。本轮加强按键的硬底座、内部压合、高反差按住状态和单次操作回执，采用 **B「钛灰工程」**：亮暗主题、直角与少量切角、可读地图标记、本地数字字体，以及选新测点时的“上次读数”提示。玩法依据 [PRD v0.5](./prd.md)，美术与交互规范见 [design.md](./design.md)。默认三次测量、每次一秒，信号模型与公平判定保持不变。
 
-[GitHub Pages 游戏入口](https://eivorchen.github.io/b03/) 保持原网址；本地测试使用 [http://127.0.0.1:4173/b03/](http://127.0.0.1:4173/b03/)。公开仓库为 [eivorchen/b03](https://github.com/eivorchen/b03)。0.4.1 已[成功发布](https://github.com/eivorchen/b03/actions/runs/39091868969)，详细验证见 [开发交接](./DEVELOPMENT_STATUS.md)。
+[GitHub Pages 游戏入口](https://eivorchen.github.io/b03/) 保持原网址；本地测试使用 [http://127.0.0.1:4173/b03/](http://127.0.0.1:4173/b03/)。公开仓库为 [eivorchen/b03](https://github.com/eivorchen/b03)。0.4.2 已于 2026-10-19 [成功发布](https://github.com/eivorchen/b03/actions/runs/39219638962)，线上资源、版本和游玩流程已核对，详细验证见 [开发交接](./DEVELOPMENT_STATUS.md)。
 
 主题首次跟随系统，手动选择后在本机保存；切换时保留测点、读数、测量计时和结果。应用使用原生 HTML、CSS、JavaScript，无账户、后端或运行时库，字体随静态资源提供。最新验证结果见 [开发交接](./DEVELOPMENT_STATUS.md) 与 [验收记录](./docs/acceptance.md)。
 

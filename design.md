@@ -1,6 +1,6 @@
 # B03 美术与界面指导：钛灰工程
 
-适用版本：0.4.2，B「钛灰工程」。本轮在本地分支 `feat/mechanical-button-feedback` 强化机甲按键反馈，尚未推送。本文为美术与交互的维护规范；实际验证范围见 [开发交接](./DEVELOPMENT_STATUS.md) 和 [验收记录](./docs/acceptance.md)，不据此宣称新版已经发布或完成真机验收。
+适用版本：0.4.2，B「钛灰工程」。本轮强化机甲按键反馈，已合并到 `main` 并于 2026-10-19 发布到 GitHub Pages。本文为美术与交互的维护规范；实际验证范围见 [开发交接](./DEVELOPMENT_STATUS.md) 和 [验收记录](./docs/acceptance.md)，新版真机触感仍待复测。
 
 ## 设计定位
 
